@@ -50,7 +50,7 @@ end
 
 function convex_qp_builder(decomposition::ConvexQP, proj_fn, dual_model::JuMP.Model)
     p_vars = Dualization._get_dual_parameter.(dual_model, decomposition.p_ref)
-    y_vars = reduce(vcat, Dualization._get_dual_variables.(dual_model, decomposition.y_ref))
+    y_vars = Dualization._get_dual_variables.(dual_model, decomposition.y_ref)
     z_vars = Dualization._get_dual_slack_variable.(dual_model, decomposition.x_ref)
     types = filter(t -> !(t[1] <: JuMP.VariableRef), JuMP.list_of_constraint_types(dual_model))
 
@@ -85,16 +85,16 @@ function convex_qp_builder(decomposition::ConvexQP, proj_fn, dual_model::JuMP.Mo
         y_pred_proj = proj_fn(y_pred)
 
         Fz_val = JuMP.value.(vr -> _find_and_return_value(vr,
-            [y_vars, p_vars],
-            [y_pred_proj, param_value]),
+            [reduce(vcat, y_vars), p_vars],
+            [reduce(vcat, y_pred_proj), param_value]),
             Fz
         )
 
         z = Finv'Fz_val
-        
+
         JuMP.value.(vr -> _find_and_return_value(vr,
-            [y_vars, p_vars, z_vars],
-            [y_pred_proj, param_value, z]),
+            [reduce(vcat, y_vars), p_vars, z_vars],
+            [reduce(vcat, y_pred_proj), param_value, z]),
             obj_func
         )
     end

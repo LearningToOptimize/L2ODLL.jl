@@ -31,7 +31,7 @@ function poi_builder(decomposition::AbstractDecomposition, proj_fn::Function, du
         lock(completion_model.ext[:🔒])
         try
             JuMP.set_parameter_value.(p_ref, param_value)
-            JuMP.set_parameter_value.(y_ref, proj_fn(y_pred))
+            JuMP.set_parameter_value.(reduce(vcat, y_ref), reduce(vcat, proj_fn(y_pred)))
 
             JuMP.optimize!(completion_model)
             JuMP.assert_is_solved_and_feasible(completion_model)
