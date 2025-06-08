@@ -1,8 +1,8 @@
 
-struct ConvexQP <: AbstractDecomposition
+struct ConvexQP{M} <: AbstractDecomposition
     p_ref::Vector{JuMP.VariableRef}
     y_ref::Vector{JuMP.ConstraintRef}
-    Qinv::Matrix{Float64}
+    Qinv::M
     x_ref::Vector{JuMP.VariableRef}
 end
 
@@ -13,7 +13,7 @@ function ConvexQP(model::JuMP.Model)
         JuMP.all_constraints(model, include_variable_in_set_constraints=true)
     )
     Qinv, map_to_idx = _compute_quadratic_objective_inverse(model, p_ref)
-    return ConvexQP(p_ref, y_ref, Qinv, map_to_idx)
+    return ConvexQP{typeof(Qinv)}(p_ref, y_ref, Qinv, map_to_idx)
 end
 
 function _compute_quadratic_objective_inverse(model::JuMP.Model, ignore_vars::Vector{JuMP.VariableRef})
@@ -30,6 +30,7 @@ function _compute_quadratic_objective_inverse(
     ignore_vars::Vector{MOI.VariableIndex}
 ) where {T}
     # based on MathOptInterface.jl/src/Bridges/Constraint/bridges/QuadtoSOCBridge.jl
+    # TODO: use process_objective from MOI_wrapper.jl
     Q, index_to_variable_map = MOIB.Constraint._matrix_from_quadratic_terms(func.quadratic_terms)
     # figure out which columns/rows to drop
     drop_idx = []
