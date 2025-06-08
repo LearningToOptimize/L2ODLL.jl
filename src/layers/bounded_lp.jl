@@ -15,7 +15,7 @@ end
 
 function bounded_lp_builder(decomposition::BoundDecomposition, proj_fn, dual_model::JuMP.Model; completion=:exact, μ=1.0)
     p_vars = Dualization._get_dual_parameter.(dual_model, decomposition.p_ref)
-    y_vars = reduce(vcat, Dualization._get_dual_variables.(dual_model, decomposition.y_ref))
+    y_vars = Dualization._get_dual_variables.(dual_model, decomposition.y_ref)
     zl_vars = only.(Dualization._get_dual_variables.(dual_model, decomposition.zl_ref))
     zu_vars = only.(Dualization._get_dual_variables.(dual_model, decomposition.zu_ref))
     types = filter(t -> !(t[1] <: JuMP.VariableRef), JuMP.list_of_constraint_types(dual_model))
@@ -63,16 +63,16 @@ function bounded_lp_builder(decomposition::BoundDecomposition, proj_fn, dual_mod
         y_pred_proj = proj_fn(y_pred)
 
         zl_plus_zu_val = JuMP.value.(vr -> _find_and_return_value(vr,
-            [y_vars, p_vars],
-            [y_pred_proj, param_value]),
+            [reduce(vcat, y_vars), p_vars],
+            [reduce(vcat, y_pred_proj), param_value]),
             zl_plus_zu
         )
 
         zl, zu = complete_zlzu(completer, zl_plus_zu_val)
 
         JuMP.value.(vr -> _find_and_return_value(vr, 
-            [y_vars, p_vars, zl_vars, zu_vars],
-            [y_pred_proj, param_value, zl, zu]), 
+            [reduce(vcat, y_vars), p_vars, zl_vars, zu_vars],
+            [reduce(vcat, y_pred_proj), param_value, zl, zu]), 
             obj_func
         )
     end
