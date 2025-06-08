@@ -4,33 +4,6 @@
 # Use of this source code is governed by an MIT-style license that can be found
 # in the LICENSE.md file or at https://opensource.org/licenses/MIT.
 
-"""
-    VectorizeExceptVariableIndexBridge{T,F,S,G} <: Bridges.Constraint.AbstractBridge
-
-`VectorizeExceptVariableIndexBridge` implements the following reformulations:
-
-  * ``g(x) \\ge a`` into ``[g(x) - a] \\in \\mathbb{R}_+``
-  * ``g(x) \\le a`` into ``[g(x) - a] \\in \\mathbb{R}_-``
-  * ``g(x) == a`` into ``[g(x) - a] \\in \\{0\\}``
-
-where `T` is the coefficient type of `g(x) - a`.
-
-## Source node
-
-`VectorizeExceptVariableIndexBridge` supports:
-
-  * `G` in [`MOI.GreaterThan{T}`](@ref)
-  * `G` in [`MOI.LessThan{T}`](@ref)
-  * `G` in [`MOI.EqualTo{T}`](@ref)
-
-## Target nodes
-
-`VectorizeExceptVariableIndexBridge` creates:
-
-  * `F` in `S`, where `S` is one of [`MOI.Nonnegatives`](@ref),
-    [`MOI.Nonpositives`](@ref), [`MOI.Zeros`](@ref) depending on the type of the
-    input set.
-"""
 mutable struct VectorizeExceptVariableIndexBridge{T,F,S,G} <: MOI.Bridges.Constraint.AbstractBridge
     vector_constraint::MOI.ConstraintIndex{F,S}
     set_constant::T # constant in scalar set
@@ -39,7 +12,7 @@ end
 const VectorizeExceptVariableIndex{T,OT<:MOI.ModelLike} =
     MOI.Bridges.Constraint.SingleBridgeOptimizer{VectorizeExceptVariableIndexBridge{T},OT}
 
-function bridge_constraint(
+function MOI.Bridges.Constraint.bridge_constraint(
     ::Type{VectorizeExceptVariableIndexBridge{T,F,S,G}},
     model::MOI.ModelLike,
     scalar_f::G,
@@ -75,7 +48,7 @@ function MOI.Bridges.added_constraint_types(
     return Tuple{Type,Type}[(F, S)]
 end
 
-function concrete_bridge_type(
+function MOI.Bridges.Constraint.concrete_bridge_type(
     ::Type{<:VectorizeExceptVariableIndexBridge{T}},
     G::Type{<:MOI.AbstractScalarFunction},
     S::Type{<:MOI.Utilities.ScalarLinearSet{T}},

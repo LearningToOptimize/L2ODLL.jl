@@ -1,4 +1,3 @@
-
 struct ConvexQP{M} <: AbstractDecomposition
     p_ref::Vector{JuMP.VariableRef}
     y_ref::Vector{JuMP.ConstraintRef}
