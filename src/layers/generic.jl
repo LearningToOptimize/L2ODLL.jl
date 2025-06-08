@@ -13,7 +13,7 @@ end
 
 function poi_builder(decomposition::AbstractDecomposition, proj_fn::Function, dual_model::JuMP.Model, optimizer)
     completion_model, (p_ref, y_ref, ref_map) = make_completion_model(decomposition, dual_model)
-    set_optimizer(completion_model, optimizer) # () -> ParametricOptInterface.Optimizer(optimizer())
+    JuMP.set_optimizer(completion_model, optimizer) # () -> ParametricOptInterface.Optimizer(optimizer())
     completion_model.ext[:🔒] = ReentrantLock()
     # TODO: use DiffOpt to define frule/rrule
     return (y_pred, param_value) -> begin
@@ -35,14 +35,20 @@ end
 function make_completion_model(decomposition::AbstractDecomposition, dual_model::JuMP.Model)
     completion_model, ref_map = JuMP.copy_model(dual_model)
     p_ref = getindex.(ref_map, Dualization._get_dual_parameter.(dual_model, decomposition.p_ref))
-    @constraint(completion_model, p_ref .∈ MOI.Parameter.(zeros(length(p_ref))))
 
     y_vars = Dualization._get_dual_variables.(dual_model, decomposition.y_ref)
-    y_ref = getindex.(ref_map, reduce(vcat, y_vars))
+    y_ref = Vector{JuMP.VariableRef}[]
+    for y in y_vars
+        push!(y_ref, getindex.(ref_map, y))
+    end
 
-    delete_lower_bound.(filter(has_lower_bound, y_ref))
-    delete_upper_bound.(filter(has_upper_bound, y_ref))
-    @constraint(completion_model, y_ref .∈ MOI.Parameter.(zeros(length(y_ref))))
+    # remove dual cone constraints from y variables
+    JuMP.delete.(completion_model, filter(!isnothing, Dualization._get_dual_constraint.(dual_model, decomposition.y_ref)))
+
+    # mark y and p as parameters (optimizing over z only)
+    y_ref_flat = reduce(vcat, y_ref)
+    JuMP.@constraint(completion_model, y_ref_flat .∈ MOI.Parameter.(zeros(length(y_ref_flat))))
+    JuMP.@constraint(completion_model, p_ref .∈ MOI.Parameter.(zeros(length(p_ref))))
     
     return completion_model, (p_ref, y_ref, ref_map)
 end
