@@ -43,7 +43,7 @@ function make_completion_model(decomposition::AbstractDecomposition, dual_model:
     end
 
     # remove dual cone constraints from y variables
-    JuMP.delete.(completion_model, filter(!isnothing, Dualization._get_dual_constraint.(dual_model, decomposition.y_ref)))
+    JuMP.delete.(completion_model, getindex.(ref_map, filter(!isnothing, Dualization._get_dual_constraint.(dual_model, decomposition.y_ref))))
 
     # mark y and p as parameters (optimizing over z only)
     y_ref_flat = reduce(vcat, y_ref)

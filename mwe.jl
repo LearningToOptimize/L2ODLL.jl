@@ -70,10 +70,6 @@ y_prediction = randn_like(Dualization._get_dual_variables.(gen_cache.dual_model,
 pd_value = opf.data.pd
 qd_value = opf.data.qd
 param_value = [pd_value; qd_value]
-# TODO: copy_to not supported by POI{Clarabel}?
-# dobj = gen_cache.dll_layer(y_prediction, param_value)
+dobj = gen_cache.dll_layer(y_prediction, param_value)
 # diffopt needed
 # dobj, dobj_wrt_y = value_and_gradient(gen_cache.dll_layer, AutoForwardDiff(), y_prediction, Constant(pd_value))
-
-
-
