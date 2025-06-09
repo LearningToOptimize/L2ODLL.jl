@@ -13,12 +13,12 @@ function BoundDecomposition(model::JuMP.Model)
     return BoundDecomposition(p_ref, y_ref, zl_ref, zu_ref)
 end
 
-function bounded_lp_builder(decomposition::BoundDecomposition, proj_fn, dual_model::JuMP.Model; completion=:exact, μ=1.0)
+function bounded_builder(decomposition::BoundDecomposition, proj_fn, dual_model::JuMP.Model; completion=:exact, μ=1.0)
     p_vars = Dualization._get_dual_parameter.(dual_model, decomposition.p_ref)
     y_vars = Dualization._get_dual_variables.(dual_model, decomposition.y_ref)
     zl_vars = only.(Dualization._get_dual_variables.(dual_model, decomposition.zl_ref))
     zu_vars = only.(Dualization._get_dual_variables.(dual_model, decomposition.zu_ref))
-    types = filter(t -> !(t[1] <: JuMP.VariableRef), JuMP.list_of_constraint_types(dual_model))
+    types = filter(t -> !(t[1] <: JuMP.VariableRef || t[1] <: Vector{JuMP.VariableRef}), JuMP.list_of_constraint_types(dual_model))
 
     zl_plus_zu = zeros(JuMP.AffExpr, length(zl_vars))
     idx_left = Set(1:length(zl_vars))
@@ -84,19 +84,6 @@ function _find_and_return_value(vr, var_lists, values)
         !isnothing(idx) && return val[idx]
     end
     throw(ArgumentError("Variable $vr not found in any variable list"))
-end
-
-function _is_plp(model::JuMP.GenericModel)
-    # based on JuMP._is_lp
-    for (F, S) in JuMP.list_of_constraint_types(model)
-        # TODO(odow): support Interval constraints.
-        if !(S <: Union{MOI.LessThan,MOI.GreaterThan,MOI.EqualTo,MOI.Parameter})
-            return false
-        elseif !(F <: Union{JuMP.GenericVariableRef,JuMP.GenericAffExpr})
-            return false
-        end
-    end
-    return true
 end
 
 

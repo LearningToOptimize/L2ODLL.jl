@@ -18,7 +18,7 @@ abstract type AbstractDecomposition end  # must have p_ref and y_ref
 include("MOI_wrapper.jl")
 include("projection.jl")
 include("layers/generic.jl")
-include("layers/bounded_lp.jl")
+include("layers/bounded.jl")
 include("layers/convex_qp.jl")
 
 struct DLLCache
@@ -37,8 +37,8 @@ function build_cache(model::JuMP.Model, decomposition::AbstractDecomposition;
 
     dll_layer = if !isnothing(dll_layer_builder)
             dll_layer_builder(decomposition, proj_fn, dual_model)
-        elseif decomposition isa BoundDecomposition && _is_plp(model)
-            bounded_lp_builder(decomposition, proj_fn, dual_model) # default to completion=:exact
+        elseif decomposition isa BoundDecomposition
+            bounded_builder(decomposition, proj_fn, dual_model)
         elseif decomposition isa ConvexQP
             convex_qp_builder(decomposition, proj_fn, dual_model)
         else
