@@ -40,7 +40,7 @@ function build_cache(model::JuMP.Model, decomposition::AbstractDecomposition;
         elseif decomposition isa ConvexQP
             convex_qp_builder(decomposition, proj_fn, dual_model)
         else
-            jump_builder(decomposition, dual_model, optimizer)
+            jump_builder(decomposition, proj_fn, dual_model, optimizer)
         end
 
     return DLLCache(proj_fn, dll_layer, dual_model, decomposition)
