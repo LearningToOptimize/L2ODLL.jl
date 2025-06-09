@@ -14,10 +14,10 @@ const MOSD = MathOptSetDistances
 abstract type AbstractDecomposition end  # must have p_ref and y_ref
 
 include("MOI_wrapper.jl")
-include("projection.jl")
 include("layers/generic.jl")
 include("layers/bounded.jl")
 include("layers/convex_qp.jl")
+include("projection.jl")
 
 struct DLLCache
     y_proj::Function
@@ -53,16 +53,19 @@ function make_completion_data(cache::DLLCache; M=SparseArrays.SparseMatrixCSC{Fl
     completion_model, (p_ref, y_ref, ref_map) = make_completion_model(cache)
     return model_to_data(completion_model, M=M, V=V, T=T), (p_ref, y_ref, ref_map)
 end
-
-function y_shape(cache::DLLCache)
-    return length.(Dualization._get_dual_variables.(cache.dual_model, cache.decomposition.y_ref))
+function get_y(cache::DLLCache)
+    return get_y(cache.dual_model, cache.decomposition)
 end
 
-function flatten_y(y)
+function y_shape(cache::DLLCache)
+    return length.(get_y(cache.dual_model, cache.decomposition))
+end
+
+function flatten_y(y::AbstractVector)
     return reduce(vcat, y)
 end
 
-function unflatten_y(y, y_shape::Vector{Int})
+function unflatten_y(y::AbstractVector, y_shape::AbstractVector{Int})
     return [y[start_idx:start_idx + shape - 1] for (start_idx, shape) in enumerate(y_shape)]
 end
 

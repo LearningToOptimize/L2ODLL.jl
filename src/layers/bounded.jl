@@ -14,11 +14,14 @@ function BoundDecomposition(model::JuMP.Model)
 end
 
 function bounded_builder(decomposition::BoundDecomposition, proj_fn, dual_model::JuMP.Model; completion=:exact, μ=1.0)
-    p_vars = Dualization._get_dual_parameter.(dual_model, decomposition.p_ref)
-    y_vars = Dualization._get_dual_variables.(dual_model, decomposition.y_ref)
-    zl_vars = only.(Dualization._get_dual_variables.(dual_model, decomposition.zl_ref))
-    zu_vars = only.(Dualization._get_dual_variables.(dual_model, decomposition.zu_ref))
-    types = filter(t -> !(t[1] <: JuMP.VariableRef || t[1] <: Vector{JuMP.VariableRef}), JuMP.list_of_constraint_types(dual_model))
+    p_vars = get_p(dual_model, decomposition)
+    y_vars = get_y(dual_model, decomposition)
+    zl_vars = only.(get_zl(dual_model, decomposition))
+    zu_vars = only.(get_zu(dual_model, decomposition))
+    types = filter(
+        t -> !(t[1] <: JuMP.VariableRef || t[1] <: Vector{JuMP.VariableRef}),
+        JuMP.list_of_constraint_types(dual_model)
+    )
 
     zl_plus_zu = zeros(JuMP.AffExpr, length(zl_vars))
     idx_left = Set(1:length(zl_vars))
@@ -116,4 +119,12 @@ function complete_zlzu(
         v + w + sqrtv2w2,
         -v - w + sqrtv2w2,
     )
+end
+
+function get_zl(dual_model, decomposition::BoundDecomposition)
+    return only.(Dualization._get_dual_variables.(dual_model, decomposition.zl_ref))
+end
+
+function get_zu(dual_model, decomposition::BoundDecomposition)
+    return only.(Dualization._get_dual_variables.(dual_model, decomposition.zu_ref))
 end

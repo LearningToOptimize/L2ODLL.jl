@@ -36,11 +36,11 @@ end
 
 function make_completion_model(decomposition::AbstractDecomposition, dual_model::JuMP.Model)
     completion_model, ref_map = JuMP.copy_model(dual_model)
-    p_ref = getindex.(ref_map, Dualization._get_dual_parameter.(dual_model, decomposition.p_ref))
-    y_ref = getindex.(ref_map, Dualization._get_dual_variables.(dual_model, decomposition.y_ref))
+    p_ref = getindex.(ref_map, get_p(dual_model, decomposition))
+    y_ref = getindex.(ref_map, get_y(dual_model, decomposition))
 
     # remove dual cone constraints from y variables
-    JuMP.delete.(completion_model, getindex.(ref_map, filter(!isnothing, Dualization._get_dual_constraint.(dual_model, decomposition.y_ref))))
+    JuMP.delete.(completion_model, getindex.(ref_map, filter(!isnothing, get_y_constraint(dual_model, decomposition))))
 
     # mark y and p as parameters (optimizing over z only)
     y_ref_flat = reduce(vcat, y_ref)
@@ -53,4 +53,16 @@ end
 function make_completion_data(decomposition::AbstractDecomposition, dual_model::JuMP.Model; M=SparseArrays.SparseMatrixCSC{Float64,Int}, V=Vector{Float64}, T=Float64)
     completion_model, (p_ref, y_ref, ref_map) = make_completion_model(decomposition, dual_model)
     return model_to_data(completion_model, M=M, V=V, T=T), (p_ref, y_ref, ref_map)
+end
+
+function get_y(dual_model, decomposition::AbstractDecomposition)
+    return Dualization._get_dual_variables.(dual_model, decomposition.y_ref)
+end
+
+function get_p(dual_model, decomposition::AbstractDecomposition)
+    return Dualization._get_dual_parameter.(dual_model, decomposition.p_ref)
+end
+
+function get_y_constraint(dual_model, decomposition::AbstractDecomposition)
+    return Dualization._get_dual_constraint.(dual_model, decomposition.y_ref)
 end

@@ -47,7 +47,7 @@ SOLVER = () -> ParametricOptInterface.Optimizer(HiGHS.Optimizer());
         JuMP.set_parameter_value.([γ], param_value);
 
         cqp_cache = L2ODLL.build_cache(m, L2ODLL.ConvexQP(m));
-        cqp_y_pred = randn_like(Dualization._get_dual_variables.(cqp_cache.dual_model, cqp_cache.decomposition.y_ref));
+        cqp_y_pred = randn_like(L2ODLL.get_y(cqp_cache));
         dobj1 = cqp_cache.dll_layer(cqp_y_pred, param_value)
         dobj, dobj_wrt_y_flat = DifferentiationInterface.value_and_gradient(
             cqp_cache.dll_layer,
@@ -57,7 +57,7 @@ SOLVER = () -> ParametricOptInterface.Optimizer(HiGHS.Optimizer());
         dobj_wrt_y = L2ODLL.unflatten_y(dobj_wrt_y_flat, L2ODLL.y_shape(cqp_cache))
         @test isapprox(dobj1, dobj, atol=1e-6)
 
-        cqp_solver_cache = L2ODLL.build_cache(m, L2ODLL.ConvexQP(m), dll_layer_builder=(d,p,m) -> L2ODLL.poi_builder(d,p,m,SOLVER));
+        cqp_solver_cache = L2ODLL.build_cache(m, L2ODLL.ConvexQP(m), dll_layer_builder=(d,m) -> L2ODLL.poi_builder(d,m,SOLVER));
         dobj2 = cqp_solver_cache.dll_layer(cqp_y_pred, param_value)
         @test isapprox(dobj1, dobj2, atol=1e-6)
 
@@ -90,7 +90,7 @@ SOLVER = () -> ParametricOptInterface.Optimizer(HiGHS.Optimizer());
         JuMP.set_parameter_value.([μ; γ], param_value);
 
         blp_cache = L2ODLL.build_cache(m, L2ODLL.BoundDecomposition(m));
-        blp_y_pred = randn_like(Dualization._get_dual_variables.(blp_cache.dual_model, blp_cache.decomposition.y_ref));
+        blp_y_pred = randn_like(L2ODLL.get_y(blp_cache));
         dobj1 = blp_cache.dll_layer(blp_y_pred, param_value)
         dobj, dobj_wrt_y = DifferentiationInterface.value_and_gradient(
             (y,p) ->blp_cache.dll_layer(L2ODLL.unflatten_y(y, L2ODLL.y_shape(blp_cache)),p),
@@ -100,7 +100,7 @@ SOLVER = () -> ParametricOptInterface.Optimizer(HiGHS.Optimizer());
         dobj_wrt_y = L2ODLL.unflatten_y(dobj_wrt_y, L2ODLL.y_shape(blp_cache))
         @test isapprox(dobj1, dobj, atol=1e-6)
 
-        blp_solver_cache = L2ODLL.build_cache(m, L2ODLL.BoundDecomposition(m), dll_layer_builder=(d,p,m) -> L2ODLL.poi_builder(d,p,m,SOLVER));
+        blp_solver_cache = L2ODLL.build_cache(m, L2ODLL.BoundDecomposition(m), dll_layer_builder=(d,m) -> L2ODLL.poi_builder(d,m,SOLVER));
         dobj2 = blp_solver_cache.dll_layer(blp_y_pred, param_value)
         @test isapprox(dobj1, dobj2, atol=1e-6)
 
