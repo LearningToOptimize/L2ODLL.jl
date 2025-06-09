@@ -36,12 +36,7 @@ end
 function make_completion_model(decomposition::AbstractDecomposition, dual_model::JuMP.Model)
     completion_model, ref_map = JuMP.copy_model(dual_model)
     p_ref = getindex.(ref_map, Dualization._get_dual_parameter.(dual_model, decomposition.p_ref))
-
-    y_vars = Dualization._get_dual_variables.(dual_model, decomposition.y_ref)
-    y_ref = Vector{JuMP.VariableRef}[]
-    for y in y_vars
-        push!(y_ref, getindex.(ref_map, y))
-    end
+    y_ref = getindex.(ref_map, Dualization._get_dual_variables.(dual_model, decomposition.y_ref))
 
     # remove dual cone constraints from y variables
     JuMP.delete.(completion_model, getindex.(ref_map, filter(!isnothing, Dualization._get_dual_constraint.(dual_model, decomposition.y_ref))))

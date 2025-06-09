@@ -11,8 +11,8 @@ function ConvexQP(model::JuMP.Model)
         cr -> !(typeof(JuMP.index(cr)).parameters[2] <: MOI.Parameter),
         JuMP.all_constraints(model, include_variable_in_set_constraints=true)
     )
-    Qinv, map_to_idx = _compute_quadratic_objective_inverse(model, p_ref)
-    return ConvexQP{typeof(Qinv)}(p_ref, y_ref, Qinv, map_to_idx)
+    Qinv, x_ref = _compute_quadratic_objective_inverse(model, p_ref)
+    return ConvexQP{typeof(Qinv)}(p_ref, y_ref, Qinv, x_ref)
 end
 
 function _compute_quadratic_objective_inverse(model::JuMP.Model, ignore_vars::Vector{JuMP.VariableRef})
@@ -38,6 +38,7 @@ function _compute_quadratic_objective_inverse(
             push!(drop_idx, i)
         end
     end
+    deleteat!(index_to_variable_map, drop_idx)
     Q = Q[setdiff(1:size(Q, 1), drop_idx), setdiff(1:size(Q, 2), drop_idx)]
     Qinv = inv(Matrix{eltype(Q)}(Q))
     return Qinv, index_to_variable_map
@@ -55,21 +56,16 @@ function convex_qp_builder(decomposition::ConvexQP, proj_fn, dual_model::JuMP.Mo
     types = filter(t -> !(t[1] <: JuMP.VariableRef || t[1] <: Vector{JuMP.VariableRef}), JuMP.list_of_constraint_types(dual_model))
 
     Fz = zeros(JuMP.AffExpr, length(z_vars))
-    idx_left = Set(1:length(z_vars))
+    idx_left = collect(reverse(1:length(z_vars)))
     for (F, S) in types
         @assert F <: JuMP.GenericAffExpr "Unsupported constraint function in convex_qp_builder: $F with set $S"
         if F <: JuMP.GenericAffExpr && S <: MOI.EqualTo
             constraints = JuMP.all_constraints(dual_model, F, S)
             for cr in constraints
                 co = JuMP.constraint_object(cr)
-                z_idx = findall(z -> z in keys(co.func.terms), z_vars)
-                length(z_idx) == 0 && continue # if primal var doesn't have quadratic term
-                @assert length(z_idx) == 1 "Multiple z variables found in constraint $cr"
-                z_idx = only(z_idx)
-
+                z_idx = pop!(idx_left)
                 # from A'y + F'z = c to F'z = c - A'y
                 Fz[z_idx] = co.set.value - JuMP.value(vr -> (vr ∈ z_vars) ? 0 : vr, co.func)
-                delete!(idx_left, z_idx)
             end
         else
             throw(ArgumentError("Unsupported constraint set in convex_qp_builder: $S"))
