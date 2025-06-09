@@ -52,12 +52,12 @@ function convex_qp_builder(decomposition::ConvexQP, proj_fn, dual_model::JuMP.Mo
     p_vars = Dualization._get_dual_parameter.(dual_model, decomposition.p_ref)
     y_vars = Dualization._get_dual_variables.(dual_model, decomposition.y_ref)
     z_vars = Dualization._get_dual_slack_variable.(dual_model, decomposition.x_ref)
-    types = filter(t -> !(t[1] <: JuMP.VariableRef), JuMP.list_of_constraint_types(dual_model))
+    types = filter(t -> !(t[1] <: JuMP.VariableRef || t[1] <: Vector{JuMP.VariableRef}), JuMP.list_of_constraint_types(dual_model))
 
     Fz = zeros(JuMP.AffExpr, length(z_vars))
     idx_left = Set(1:length(z_vars))
     for (F, S) in types
-        # @assert F <: JuMP.GenericAffExpr "Unsupported constraint function in convex_qp_builder: $F with set $S"
+        @assert F <: JuMP.GenericAffExpr "Unsupported constraint function in convex_qp_builder: $F with set $S"
         if F <: JuMP.GenericAffExpr && S <: MOI.EqualTo
             constraints = JuMP.all_constraints(dual_model, F, S)
             for cr in constraints
@@ -68,11 +68,11 @@ function convex_qp_builder(decomposition::ConvexQP, proj_fn, dual_model::JuMP.Mo
                 z_idx = only(z_idx)
 
                 # from A'y + F'z = c to F'z = c - A'y
-                Fz[z_idx] = co.set.value - JuMP.value(vr -> (vr ∈ z_vars) ? 0 : vr, cr)
+                Fz[z_idx] = co.set.value - JuMP.value(vr -> (vr ∈ z_vars) ? 0 : vr, co.func)
                 delete!(idx_left, z_idx)
             end
-        # else
-            # throw(ArgumentError("Unsupported constraint set in convex_qp_builder: $S"))
+        else
+            throw(ArgumentError("Unsupported constraint set in convex_qp_builder: $S"))
         end
     end
     @assert isempty(idx_left) "Some z were not found in the model"
@@ -90,7 +90,7 @@ function convex_qp_builder(decomposition::ConvexQP, proj_fn, dual_model::JuMP.Mo
             Fz
         )
 
-        z = Finv'Fz_val
+        z = Finv * Fz_val
 
         JuMP.value.(vr -> _find_and_return_value(vr,
             [reduce(vcat, y_vars), p_vars, z_vars],

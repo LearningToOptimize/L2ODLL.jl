@@ -95,10 +95,8 @@ end
 
 function process_objective(n::Int, f::MOI.ScalarQuadraticFunction{T}) where {T <: AbstractFloat}
     I = [Int(term.variable_1.value) for term in f.quadratic_terms]
-    I = [Int(term.variable_1.value) for term in f.quadratic_terms]
     J = [Int(term.variable_2.value) for term in f.quadratic_terms]
     V = [term.coefficient for term in f.quadratic_terms]
-    symmetrize!(I, J, V)
     Q = sparse(I, J, V, n, n)
 
     q = zeros(T, n)
@@ -117,18 +115,6 @@ function processlinearterms!(q, terms::Vector{<:MOI.ScalarAffineTerm})
         var = term.variable
         coeff = term.coefficient
         q[var.value] += coeff
-    end
-end
-
-function symmetrize!(I::Vector{Ti}, J::Vector{Ti}, V::Vector{Tv}) where {Tv <: AbstractFloat, Ti <: Integer}
-    n = length(V)
-    (length(I) == length(J) == n) || error()
-    for i = 1 : n
-        if I[i] != J[i]
-            push!(I, J[i])
-            push!(J, I[i])
-            push!(V, V[i])
-        end
     end
 end
 
