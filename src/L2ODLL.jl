@@ -49,9 +49,11 @@ end
 function make_completion_model(cache::DLLCache)
     return make_completion_model(cache.decomposition, cache.dual_model)
 end
-function make_completion_data(cache::DLLCache; M=SparseArrays.SparseMatrixCSC{Float64,Int}, V=Vector{Float64}, T=Float64)
+function make_vector_data(cache::DLLCache; M=SparseArrays.SparseMatrixCSC{Float64,Int}, V=Vector{Float64}, T=Float64)
     completion_model, (p_ref, y_ref, ref_map) = make_completion_model(cache)
-    return model_to_data(completion_model, M=M, V=V, T=T), (p_ref, y_ref, ref_map)
+    y_sets = get_y_sets(cache.dual_model, cache.decomposition)
+    completion_data = convert(VectorStandardFormData{M,V,T}, model_to_data(completion_model))
+    return completion_data, y_sets, (p_ref, y_ref, ref_map)
 end
 function get_y(cache::DLLCache)
     return get_y(cache.dual_model, cache.decomposition)

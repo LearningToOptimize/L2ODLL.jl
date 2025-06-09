@@ -53,9 +53,11 @@ function _make_completion_model(decomposition::AbstractDecomposition, dual_model
     return completion_model, (p_ref, y_ref, ref_map)
 end
 
-function make_completion_data(decomposition::AbstractDecomposition, dual_model::JuMP.Model; M=SparseArrays.SparseMatrixCSC{Float64,Int}, V=Vector{Float64}, T=Float64)
-    completion_model, (p_ref, y_ref, ref_map) = _make_completion_model(decomposition, dual_model)
-    return model_to_data(completion_model, M=M, V=V, T=T), (p_ref, y_ref, ref_map)
+function make_vector_data(decomposition::AbstractDecomposition, dual_model::JuMP.Model; M=SparseArrays.SparseMatrixCSC{Float64,Int}, V=Vector{Float64}, T=Float64)
+    completion_model, (p_ref, y_ref, ref_map) = make_completion_model(decomposition, dual_model)
+    y_sets = get_y_sets(dual_model, decomposition)
+    data = convert(VectorStandardFormData{M,V,T}, model_to_data(completion_model))
+    return data, y_sets, (p_ref, y_ref, ref_map)
 end
 
 function get_y(dual_model, decomposition::AbstractDecomposition)
