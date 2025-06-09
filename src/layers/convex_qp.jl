@@ -1,6 +1,7 @@
 struct ConvexQP <: AbstractDecomposition
     p_ref::Vector{JuMP.VariableRef}
     y_ref::Vector{JuMP.ConstraintRef}
+    x_ref::Vector{JuMP.VariableRef}
 end
 function ConvexQP(model::JuMP.Model)
     p_ref = filter(JuMP.is_parameter, JuMP.all_variables(model))
@@ -8,14 +9,21 @@ function ConvexQP(model::JuMP.Model)
         cr -> !(typeof(JuMP.index(cr)).parameters[2] <: MOI.Parameter),
         JuMP.all_constraints(model, include_variable_in_set_constraints=true)
     )
-    return ConvexQP(p_ref, y_ref)
+    x_ref = filter(!JuMP.is_parameter, JuMP.all_variables(model))
+    return ConvexQP(p_ref, y_ref, x_ref)
 end
 
 
 function convex_qp_builder(decomposition::ConvexQP, proj_fn, dual_model::JuMP.Model)
     p_vars = get_p(dual_model, decomposition)
     y_vars = get_y(dual_model, decomposition)
-    z_vars = get_quadslack(dual_model)
+    x_vars = get_x(decomposition)
+    if !all(x -> has_quadslack(dual_model, x), x_vars)
+        @warn "Some primal variables do not have a quadratic objective term, " *
+               "so they do not have a quadratic slack variable in the dual." *
+               "There may not be enough flexibility in the completion model to guarantee feasibility."
+    end
+    z_vars = get_quadslack(dual_model, decomposition)
     types = filter(
         t -> !(t[1] <: JuMP.VariableRef || t[1] <: Vector{JuMP.VariableRef}),
         JuMP.list_of_constraint_types(dual_model)
@@ -68,7 +76,17 @@ function convex_qp_builder(decomposition::ConvexQP, proj_fn, dual_model::JuMP.Mo
     end
 end
 
-function get_quadslack(dual_model)
+function get_quadslack(dual_model, decomposition::ConvexQP)
+    return Dualization._get_dual_slack_variable.(dual_model,
+        filter(x -> has_quadslack(dual_model, x), decomposition.x_ref)
+    )
+end
+
+function has_quadslack(dual_model, x::JuMP.VariableRef)
     pdm = dual_model.ext[:_Dualization_jl_PrimalDualMap]
-    return [JuMP.VariableRef(dual_model, vi) for vi in collect(values(pdm.primal_var_in_quad_obj_to_dual_slack_var))]
+    return haskey(pdm.primal_var_in_quad_obj_to_dual_slack_var, JuMP.index(x))
+end
+
+function get_x(decomposition::ConvexQP)
+    return decomposition.x_ref
 end
