@@ -53,11 +53,11 @@ function bounded_builder(decomposition::BoundDecomposition, proj_fn, dual_model:
     obj_func = JuMP.objective_function(dual_model)
 
     completer = if completion == :exact
-        ExactBoundedLPCompletion()
+        ExactBoundedCompletion()
     elseif completion == :log
         l = getfield.(getfield.(JuMP.constraint_object.(decomposition.zl_ref), :set), :lower)
         u = getfield.(getfield.(JuMP.constraint_object.(decomposition.zu_ref), :set), :upper)
-        LogBoundedLPCompletion(μ, l, u)
+        LogBoundedCompletion(μ, l, u)
     else
         throw(ArgumentError("Invalid completion type: $completion. Must be :exact or :log."))
     end
@@ -89,27 +89,23 @@ function _find_and_return_value(vr, var_lists, values)
     throw(ArgumentError("Variable $vr not found in any variable list"))
 end
 
-
-abstract type AbstractCompletion end
-abstract type BoundedLPCompletion <: AbstractCompletion end
-struct ExactBoundedLPCompletion <: BoundedLPCompletion end
-
+abstract type BoundedCompletion end
+struct ExactBoundedCompletion <: BoundedCompletion end
 function complete_zlzu(
-    ::ExactBoundedLPCompletion,
+    ::ExactBoundedCompletion,
     z
 )
     return max.(z, zero(eltype(z))), -max.(-z, zero(eltype(z)))
 end
 
-
-struct LogBoundedLPCompletion{T<:Real} <: BoundedLPCompletion
+struct LogBoundedCompletion{T<:Real} <: BoundedCompletion
     μ::T
     l::AbstractVector{T}
     u::AbstractVector{T}
 end
 
 function complete_zlzu(
-    c::LogBoundedLPCompletion,
+    c::LogBoundedCompletion,
     z
 )
     v = c.μ ./ (c.u - c.l)
@@ -119,6 +115,19 @@ function complete_zlzu(
         v + w + sqrtv2w2,
         -v - w + sqrtv2w2,
     )
+end
+function make_completion_model(decomposition::BoundDecomposition, dual_model::JuMP.Model; log_barrier=false, conic=true)
+    if log_barrier
+        completion_model, (p_ref, y_ref, ref_map) = _make_completion_model(decomposition, dual_model)
+        zl = getindex.(ref_map, get_zl(dual_model, decomposition))
+        zu = getindex.(ref_map, get_zu(dual_model, decomposition))
+        # TODO: add exponential cone constraints and objective terms
+        # TODO: add log nonlinear objective terms
+        # note objective sense
+        return completion_model, (p_ref, y_ref, ref_map)
+    else
+        return _make_completion_model(decomposition, dual_model)
+    end
 end
 
 function get_zl(dual_model, decomposition::BoundDecomposition)

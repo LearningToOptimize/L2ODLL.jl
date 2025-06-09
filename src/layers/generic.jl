@@ -35,6 +35,9 @@ function poi_builder(decomposition::AbstractDecomposition, proj_fn::Function, du
 end
 
 function make_completion_model(decomposition::AbstractDecomposition, dual_model::JuMP.Model)
+    return _make_completion_model(decomposition, dual_model)
+end
+function _make_completion_model(decomposition::AbstractDecomposition, dual_model::JuMP.Model)
     completion_model, ref_map = JuMP.copy_model(dual_model)
     p_ref = getindex.(ref_map, get_p(dual_model, decomposition))
     y_ref = getindex.(ref_map, get_y(dual_model, decomposition))
@@ -51,7 +54,7 @@ function make_completion_model(decomposition::AbstractDecomposition, dual_model:
 end
 
 function make_completion_data(decomposition::AbstractDecomposition, dual_model::JuMP.Model; M=SparseArrays.SparseMatrixCSC{Float64,Int}, V=Vector{Float64}, T=Float64)
-    completion_model, (p_ref, y_ref, ref_map) = make_completion_model(decomposition, dual_model)
+    completion_model, (p_ref, y_ref, ref_map) = _make_completion_model(decomposition, dual_model)
     return model_to_data(completion_model, M=M, V=V, T=T), (p_ref, y_ref, ref_map)
 end
 
