@@ -4,13 +4,11 @@ import Dualization
 import JuMP
 import LinearAlgebra
 import MathOptSetDistances
-import ParametricOptInterface
 import SparseArrays
 
 const MOI = JuMP.MOI
 const MOIB = JuMP.MOIB
 const MOIU = JuMP.MOIU
-const POI = ParametricOptInterface
 const MOSD = MathOptSetDistances
 
 abstract type AbstractDecomposition end  # must have p_ref and y_ref
