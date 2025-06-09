@@ -96,25 +96,6 @@ cqp_solver_cache = L2ODLL.build_cache(m, L2ODLL.ConvexQP(m), dll_layer_builder=(
 dobj2 = cqp_solver_cache.dll_layer(cqp_y_pred, param_value)
 @assert dobj1 ≈ dobj2
 
-
-m = Model()
-@variable(m, x[1:N] >=0)
-@variable(m, μ[1:N] in MOI.Parameter.(0.0))
-@variable(m, γ in MOI.Parameter(0.1))
-
-@objective(m, Max, dot(μ,x))
-@constraint(m, simplex, sum(x) == 1)
-# @constraint(m, soccon, x' * Σ * x <= γ)
-L = cholesky(Σ).L
-@constraint(m, risk, [γ; L * x] in SecondOrderCone())
-param_value = [randn(N); 0.1]
-cqp_cache = L2ODLL.build_cache(m, L2ODLL.GenericDecomposition(m), optimizer=SOLVER);
-cqp_y_pred = randn_like(Dualization._get_dual_variables.(cqp_cache.dual_model, cqp_cache.decomposition.y_ref));
-dobj1 = cqp_cache.dll_layer(cqp_y_pred, param_value)
-# vec{vec{T}} not supported by ForwardDiff
-# dobj, dobj_wrt_y = value_and_gradient(cqp_cache.dll_layer, AutoForwardDiff(), cqp_y_pred, Constant(pd_value))
-
-
 m = Model()
 @variable(m, x[1:N])
 set_lower_bound.(x, 0)
@@ -127,7 +108,7 @@ set_upper_bound.(x, 1) # need to add upper bounds for bound decomposition
 # @constraint(m, risk, x' * Σ * x <= γ)
 L = cholesky(Σ).L
 @constraint(m, risk, [γ; L * x] in SecondOrderCone())
-blp_cache = L2ODLL.build_cache(m, L2ODLL.BoundDecomposition(m), optimizer=SOLVER);
+blp_cache = L2ODLL.build_cache(m, L2ODLL.BoundDecomposition(m));
 blp_y_pred = randn_like(Dualization._get_dual_variables.(blp_cache.dual_model, blp_cache.decomposition.y_ref));
 dobj1 = blp_cache.dll_layer(blp_y_pred, param_value)
 # vec{vec{T}} not supported by ForwardDiff

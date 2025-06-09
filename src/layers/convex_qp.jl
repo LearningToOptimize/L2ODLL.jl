@@ -76,7 +76,7 @@ function convex_qp_builder(decomposition::ConvexQP, proj_fn, dual_model::JuMP.Mo
     obj_func = JuMP.objective_function(dual_model)
 
     Finv = decomposition.Qinv
-
+    # TODO: feasibility -> positive definite Q is enough?
     return (y_pred, param_value) -> begin
         y_pred_proj = proj_fn(y_pred)
 

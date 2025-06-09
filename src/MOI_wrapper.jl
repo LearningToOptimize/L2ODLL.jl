@@ -97,7 +97,7 @@ function process_objective(n::Int, f::MOI.ScalarQuadraticFunction{T}) where {T <
     I = [Int(term.variable_1.value) for term in f.quadratic_terms]
     J = [Int(term.variable_2.value) for term in f.quadratic_terms]
     V = [term.coefficient for term in f.quadratic_terms]
-    Q = sparse(I, J, V, n, n)
+    Q = SparseArrays.sparse(I, J, V, n, n)
 
     q = zeros(T, n)
     processlinearterms!(q, f.affine_terms)
