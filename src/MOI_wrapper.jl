@@ -9,10 +9,25 @@ struct VectorStandardFormData{M, V, T}
     q0::T
 end
 
-function model_to_data(model; M=SparseArrays.SparseMatrixCSC{Float64,Int}, V=Vector{Float64}, T=Float64)
+function VectorStandardFormData()
+    return VectorStandardFormData{
+        SparseArrays.SparseMatrixCSC{Float64,Int},
+        Vector{Float64},
+        Float64
+    }()
+end
+
+Base.convert(
+    ::Type{VectorStandardFormData{M,V,T}},
+    data::VectorStandardFormData
+) where {M,V,T} = begin
+    VectorStandardFormData{M,V,T}(data.At, data.Ht, data.c, data.Q, data.q, data.q0)
+end
+
+function model_to_data(model)
     sfm = StandardFormModel{Float64}()
     index_map = MOI.copy_to(VectorizeExceptVariableIndex{Float64}(sfm), model)
-    data = cache_to_data(sfm; M, V, T)
+    data = cache_to_data(sfm)
     return data, index_map
 end
 
@@ -44,21 +59,11 @@ function split_variables_parameters(vc::MOIU.VariablesContainer{T}) where {T<:Re
 end
 
 
-function cache_to_data(
-    cache::StandardFormModel;
-    M::Type{<:AbstractMatrix}=SparseArrays.SparseMatrixCSC{Float64,Int},
-    V::Type{<:AbstractVector}=Vector{Float64},
-    T::Type{<:Real}=Float64,
-)
+function cache_to_data(cache::StandardFormModel)
     v_idx, p_idx = begin
         v, p = split_variables_parameters(cache.variables)
         getfield.(v, :value), getfield.(p, :value)
     end
-
-    l = cache.variables.lower[v_idx]
-    u = cache.variables.upper[v_idx]
-    p = cache.variables.lower[p_idx]
-    @assert p == cache.variables.upper[p_idx]
 
     AtHt = convert(
         SparseArrays.SparseMatrixCSC{Float64,Int},
@@ -78,7 +83,7 @@ function cache_to_data(
     n = MOI.get(cache, MOI.NumberOfVariables())
     Q, q, q0 = process_objective(n, MOI.get(cache, MOI.ObjectiveFunction{obj_type}()))
 
-    return VectorStandardFormData{M,V,T}(
+    return VectorStandardFormData(
         At, Ht, c, Q, q, q0
     )
 end
