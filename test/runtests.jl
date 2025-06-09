@@ -39,8 +39,8 @@ SOLVER = () -> ParametricOptInterface.Optimizer(HiGHS.Optimizer());
         cqp_cache = L2ODLL.build_cache(m, L2ODLL.ConvexQP(m));
         cqp_y_pred = randn_like(Dualization._get_dual_variables.(cqp_cache.dual_model, cqp_cache.decomposition.y_ref));
         dobj1 = cqp_cache.dll_layer(cqp_y_pred, param_value)
-        # vec{vec{T}} not supported by ForwardDiff
-        # dobj, dobj_wrt_y = value_and_gradient(cqp_cache.dll_layer, AutoForwardDiff(), cqp_y_pred, Constant(pd_value))
+        dobj, dobj_wrt_y_flat = value_and_gradient(cqp_cache.dll_layer, AutoForwardDiff(), L2ODLL.flatten_y(cqp_y_pred), Constant(param_value))
+        dobj_wrt_y = L2ODLL.unflatten_y(dobj_wrt_y_flat, L2ODLL.y_shape(cqp_cache))
 
         cqp_solver_cache = L2ODLL.build_cache(m, L2ODLL.ConvexQP(m), dll_layer_builder=(d,p,m) -> L2ODLL.poi_builder(d,p,m,SOLVER));
         dobj2 = cqp_solver_cache.dll_layer(cqp_y_pred, param_value)
@@ -76,8 +76,12 @@ SOLVER = () -> ParametricOptInterface.Optimizer(HiGHS.Optimizer());
         blp_cache = L2ODLL.build_cache(m, L2ODLL.BoundDecomposition(m));
         blp_y_pred = randn_like(Dualization._get_dual_variables.(blp_cache.dual_model, blp_cache.decomposition.y_ref));
         dobj1 = blp_cache.dll_layer(blp_y_pred, param_value)
-        # vec{vec{T}} not supported by ForwardDiff
-        # dobj, dobj_wrt_y = value_and_gradient(blp_cache.dll_layer, AutoForwardDiff(), blp_y_pred, Constant(pd_value))
+        dobj, dobj_wrt_y = value_and_gradient(
+            (y,p) ->blp_cache.dll_layer(L2ODLL.unflatten_y(y, L2ODLL.y_shape(blp_cache)),p),
+            AutoForwardDiff(),
+            L2ODLL.flatten_y(blp_y_pred), Constant(param_value)
+        )
+        dobj_wrt_y = L2ODLL.unflatten_y(dobj_wrt_y, L2ODLL.y_shape(blp_cache))
 
         blp_solver_cache = L2ODLL.build_cache(m, L2ODLL.BoundDecomposition(m), dll_layer_builder=(d,p,m) -> L2ODLL.poi_builder(d,p,m,SOLVER));
         dobj2 = blp_solver_cache.dll_layer(blp_y_pred, param_value)

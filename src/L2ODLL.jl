@@ -55,4 +55,17 @@ function make_completion_data(cache::DLLCache; M=SparseArrays.SparseMatrixCSC{Fl
     completion_model, (p_ref, y_ref, ref_map) = make_completion_model(cache)
     return model_to_data(completion_model, M=M, V=V, T=T), (p_ref, y_ref, ref_map)
 end
+
+function y_shape(cache::DLLCache)
+    return length.(Dualization._get_dual_variables.(cache.dual_model, cache.decomposition.y_ref))
+end
+
+function flatten_y(y)
+    return reduce(vcat, y)
+end
+
+function unflatten_y(y, y_shape::Vector{Int})
+    return [y[start_idx:start_idx + shape - 1] for (start_idx, shape) in enumerate(y_shape)]
+end
+
 end  # module
