@@ -38,14 +38,16 @@ function make_completion_model(decomposition::AbstractDecomposition, dual_model:
     return _make_completion_model(decomposition, dual_model)
 end
 function _make_completion_model(decomposition::AbstractDecomposition, dual_model::JuMP.Model)
-    completion_model, ref_map = JuMP.copy_model(dual_model)
-    p_ref = getindex.(ref_map, get_p(dual_model, decomposition))
-    y_ref = getindex.(ref_map, get_y(dual_model, decomposition))
-
-    # remove dual cone constraints from y variables
-    JuMP.delete.(completion_model, getindex.(ref_map, filter(!isnothing, get_y_constraint(dual_model, decomposition))))
+    # make model without y cone constraints
+    y_cone_constraints = filter(!isnothing, get_y_constraint(dual_model, decomposition))
+    completion_model, ref_map = JuMP.copy_model(
+        dual_model,
+        filter_constraints=c -> !(c in y_cone_constraints)
+    )
 
     # mark y and p as parameters (optimizing over z only)
+    p_ref = getindex.(ref_map, get_p(dual_model, decomposition))
+    y_ref = getindex.(ref_map, get_y(dual_model, decomposition))
     y_ref_flat = reduce(vcat, y_ref)
     JuMP.@constraint(completion_model, y_ref_flat .∈ MOI.Parameter.(zeros(length(y_ref_flat))))
     JuMP.@constraint(completion_model, p_ref .∈ MOI.Parameter.(zeros(length(p_ref))))
