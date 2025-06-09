@@ -11,9 +11,10 @@ GenericDecomposition(model::JuMP.Model) = begin
     return GenericDecomposition(p_ref, y_ref, z_ref)
 end
 
-function poi_builder(decomposition::AbstractDecomposition, proj_fn::Function, dual_model::JuMP.Model, optimizer)
+function poi_builder(decomposition::AbstractDecomposition, proj_fn::Function, dual_model::JuMP.Model, optimizer; silent=true)
     completion_model, (p_ref, y_ref, ref_map) = make_completion_model(decomposition, dual_model)
     JuMP.set_optimizer(completion_model, optimizer) # () -> ParametricOptInterface.Optimizer(optimizer())
+    silent && JuMP.set_silent(completion_model)
     completion_model.ext[:🔒] = ReentrantLock()
     # TODO: use DiffOpt to define frule/rrule
     # TODO: handle infeasibility?
