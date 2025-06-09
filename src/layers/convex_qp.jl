@@ -63,6 +63,8 @@ function convex_qp_builder(decomposition::ConvexQP, proj_fn, dual_model::JuMP.Mo
             constraints = JuMP.all_constraints(dual_model, F, S)
             for cr in constraints
                 co = JuMP.constraint_object(cr)
+                # FIXME: indexing of z?
+                isnothing(findfirst(z -> z in keys(co.func.terms), z_vars)) && continue
                 z_idx = pop!(idx_left)
                 # from A'y + F'z = c to F'z = c - A'y
                 Fz[z_idx] = co.set.value - JuMP.value(vr -> (vr ∈ z_vars) ? 0 : vr, co.func)

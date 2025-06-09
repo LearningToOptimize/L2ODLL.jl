@@ -17,9 +17,11 @@ Dualization = "=0.6.0"
 MathOptSetDistances = "=0.2.11"
 
 [extras]
-Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+Clarabel = "61c947e1-3e6d-4ee4-985a-eec8c727bd6e"
+HiGHS = "87dc4568-4c63-4d18-b0c0-bb2238e4078b"
 HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
 JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test", "HTTP", "JSON"]
+test = ["Test", "HTTP", "JSON", "Clarabel", "HiGHS"]
