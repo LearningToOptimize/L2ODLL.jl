@@ -5,8 +5,8 @@ struct BoundDecomposition <: AbstractDecomposition
     zu_ref::Vector{JuMP.ConstraintRef}
 end
 function BoundDecomposition(model::JuMP.Model)
-    p_ref = filter(is_parameter, JuMP.all_variables(model))
-    x_ref = filter(!is_parameter, JuMP.all_variables(model))
+    p_ref = filter(JuMP.is_parameter, JuMP.all_variables(model))
+    x_ref = filter(!JuMP.is_parameter, JuMP.all_variables(model))
     y_ref = JuMP.all_constraints(model, include_variable_in_set_constraints=false)
     zl_ref = JuMP.LowerBoundRef.(x_ref)
     zu_ref = JuMP.UpperBoundRef.(x_ref)
@@ -80,7 +80,7 @@ end
 
 function _find_and_return_value(vr, var_lists, values)
     for (vars, val) in zip(var_lists, values)
-        idx = findfirst(_vr -> index(_vr) == index(vr), vars)
+        idx = findfirst(_vr -> JuMP.index(_vr) == JuMP.index(vr), vars)
         !isnothing(idx) && return val[idx]
     end
     throw(ArgumentError("Variable $vr not found in any variable list"))

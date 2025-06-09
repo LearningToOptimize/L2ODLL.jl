@@ -1,11 +1,17 @@
 module L2ODLL
 
-using Dualization
-using JuMP
-using LinearAlgebra
-using MathOptSetDistances
-using ParametricOptInterface
-using SparseArrays
+import Dualization
+import JuMP
+import LinearAlgebra
+import MathOptSetDistances
+import ParametricOptInterface
+import SparseArrays
+
+const MOI = JuMP.MOI
+const MOIB = JuMP.MOIB
+const MOIU = JuMP.MOIU
+const POI = ParametricOptInterface
+const MOSD = MathOptSetDistances
 
 abstract type AbstractDecomposition end  # must have p_ref and y_ref
 
@@ -25,7 +31,7 @@ end
 function build_cache(model::JuMP.Model, decomposition::AbstractDecomposition;
     optimizer=nothing, proj_fn=nothing, dll_layer_builder=nothing
 )
-    dual_model = dualize(model, consider_constrained_variables=false)
+    dual_model = Dualization.dualize(model, consider_constrained_variables=false)
 
     proj_fn = !isnothing(proj_fn) ? proj_fn : make_proj_fn(decomposition, dual_model)
 

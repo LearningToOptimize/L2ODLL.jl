@@ -6,9 +6,9 @@ struct ConvexQP{M} <: AbstractDecomposition
 end
 
 function ConvexQP(model::JuMP.Model)
-    p_ref = filter(is_parameter, JuMP.all_variables(model))
+    p_ref = filter(JuMP.is_parameter, JuMP.all_variables(model))
     y_ref = filter(
-        cr -> !(typeof(index(cr)).parameters[2] <: MOI.Parameter),
+        cr -> !(typeof(JuMP.index(cr)).parameters[2] <: MOI.Parameter),
         JuMP.all_constraints(model, include_variable_in_set_constraints=true)
     )
     Qinv, map_to_idx = _compute_quadratic_objective_inverse(model, p_ref)
@@ -44,7 +44,7 @@ function _compute_quadratic_objective_inverse(
 end
 
 function _compute_quadratic_objective_inverse(func::JuMP.QuadExpr, ignore_vars::Vector{JuMP.VariableRef})
-    Finv, index_to_variable_map = _compute_quadratic_objective_inverse(moi_function(func), index.(ignore_vars))
+    Finv, index_to_variable_map = _compute_quadratic_objective_inverse(JuMP.moi_function(func), JuMP.index.(ignore_vars))
     return Finv, [JuMP.VariableRef(JuMP.owner_model(func), vi) for vi in index_to_variable_map]
 end
 

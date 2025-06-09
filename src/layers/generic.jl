@@ -4,7 +4,7 @@ struct GenericDecomposition <: AbstractDecomposition
     z_ref::Vector{JuMP.ConstraintRef}
 end
 GenericDecomposition(model::JuMP.Model) = begin
-    p_ref = filter(is_parameter, JuMP.all_variables(model))
+    p_ref = filter(JuMP.is_parameter, JuMP.all_variables(model))
     y_ref = JuMP.all_constraints(model, include_variable_in_set_constraints=false)
     all_cr = JuMP.all_constraints(model, include_variable_in_set_constraints=true)
     z_ref = [cr for cr in all_cr if !(cr in y_ref) && !(typeof(cr.index).parameters[2] <: MOI.Parameter)]
@@ -16,6 +16,7 @@ function poi_builder(decomposition::AbstractDecomposition, proj_fn::Function, du
     JuMP.set_optimizer(completion_model, optimizer) # () -> ParametricOptInterface.Optimizer(optimizer())
     completion_model.ext[:🔒] = ReentrantLock()
     # TODO: use DiffOpt to define frule/rrule
+    # TODO: handle infeasibility?
     return (y_pred, param_value) -> begin
         lock(completion_model.ext[:🔒])
         try
