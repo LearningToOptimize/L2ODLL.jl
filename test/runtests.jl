@@ -57,7 +57,7 @@ SOLVER = () -> ParametricOptInterface.Optimizer(HiGHS.Optimizer());
         dobj_wrt_y = L2ODLL.unflatten_y(dobj_wrt_y_flat, L2ODLL.y_shape(cqp_cache))
         @test isapprox(dobj1, dobj, atol=1e-6)
 
-        cqp_solver_cache = L2ODLL.build_cache(m, L2ODLL.ConvexQP(m), dll_layer_builder=(d,p,m) -> L2ODLL.poi_builder(d,p,m,SOLVER));
+        cqp_solver_cache = L2ODLL.build_cache(m, L2ODLL.ConvexQP(m), dll_layer_builder=(d,p,m) -> L2ODLL.jump_builder(d,p,m,SOLVER));
         dobj2 = cqp_solver_cache.dll_layer(cqp_y_pred, param_value)
         @test isapprox(dobj1, dobj2, atol=1e-6)
 
@@ -83,9 +83,9 @@ SOLVER = () -> ParametricOptInterface.Optimizer(HiGHS.Optimizer());
         JuMP.set_upper_bound.(x, 1); # need to add upper bounds for bound decomposition
         JuMP.@variable(m, μ[1:N] in JuMP.MOI.Parameter.(0.0));
         JuMP.@variable(m, γ in JuMP.MOI.Parameter(0.1));
-        JuMP.@objective(m, Max, LinearAlgebra.dot(μ,x));
         JuMP.@constraint(m, simplex, sum(x) == 1);
         JuMP.@constraint(m, risk, [γ; LinearAlgebra.cholesky(Σ).L * x] in JuMP.SecondOrderCone());
+        JuMP.@objective(m, Max, LinearAlgebra.dot(μ,x));
         param_value = [randn(N); 0.1];
         JuMP.set_parameter_value.([μ; γ], param_value);
 
@@ -100,7 +100,7 @@ SOLVER = () -> ParametricOptInterface.Optimizer(HiGHS.Optimizer());
         dobj_wrt_y = L2ODLL.unflatten_y(dobj_wrt_y, L2ODLL.y_shape(blp_cache))
         @test isapprox(dobj1, dobj, atol=1e-6)
 
-        blp_solver_cache = L2ODLL.build_cache(m, L2ODLL.BoundDecomposition(m), dll_layer_builder=(d,p,m) -> L2ODLL.poi_builder(d,p,m,SOLVER));
+        blp_solver_cache = L2ODLL.build_cache(m, L2ODLL.BoundDecomposition(m), dll_layer_builder=(d,p,m) -> L2ODLL.jump_builder(d,p,m,SOLVER));
         dobj2 = blp_solver_cache.dll_layer(blp_y_pred, param_value)
         @test isapprox(dobj1, dobj2, atol=1e-6)
 

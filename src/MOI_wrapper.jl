@@ -38,7 +38,7 @@ MOIU.@product_of_sets(
 
 const StandardFormModel{T<:Real} = MOIU.GenericModel{T,
     MOIU.ObjectiveContainer{T},
-    MOIU.VariablesContainer{T},
+    MOIU.VariablesContainer{T}, # TODO: consider supporting conic z?
     MOIU.MatrixOfConstraints{T,
         MOIU.MutableSparseMatrixCSC{T,Int,MOIU.OneBasedIndexing},
         Vector{T}, RHS{T},
