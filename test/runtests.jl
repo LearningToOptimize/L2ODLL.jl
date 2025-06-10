@@ -46,7 +46,7 @@ SOLVER = () -> ParametricOptInterface.Optimizer(HiGHS.Optimizer());
         param_value = [0.1];
         JuMP.set_parameter_value.([γ], param_value);
 
-        L2ODLL.decompose!(m, L2ODLL.ConvexQP(m));
+        L2ODLL.decompose!(m);
 
         cqp_y_pred = randn_like(L2ODLL.get_y(L2ODLL.get_cache(m)));
 
@@ -89,7 +89,7 @@ SOLVER = () -> ParametricOptInterface.Optimizer(HiGHS.Optimizer());
         param_value = [randn(N); 0.1];
         JuMP.set_parameter_value.([μ; γ], param_value);
 
-        L2ODLL.decompose!(m, L2ODLL.BoundDecomposition(m));
+        L2ODLL.decompose!(m);
 
         blp_y_pred = randn_like(L2ODLL.get_y(L2ODLL.get_cache(m)));
 

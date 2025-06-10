@@ -15,7 +15,11 @@ const MOSD = MathOptSetDistances
 const DI = DifferentiationInterface
 const ADTypes = DI.ADTypes
 
-abstract type AbstractDecomposition end  # must have p_ref and y_ref
+abstract type AbstractDecomposition end  # must have p_ref and y_ref and implement can_decompose
+struct DecompositionError <: Exception
+    message::String
+end
+function can_decompose(model::JuMP.Model, ::Type{T}) where T <: AbstractDecomposition end
 
 include("MOI_wrapper.jl")
 include("layers/generic.jl")
@@ -28,6 +32,21 @@ struct DLLCache
     dll_layer::Function
     dual_model::JuMP.Model
     decomposition::AbstractDecomposition
+end
+
+const _DECOMPOSITIONS = [ # in order of preference for auto-detection
+    BoundDecomposition,
+    ConvexQP,
+    GenericDecomposition
+]
+
+function decompose!(model::JuMP.Model)
+    for decomp in _DECOMPOSITIONS
+        if can_decompose(model, decomp)
+            return decompose!(model, decomp(model))
+        end
+    end
+    throw(DecompositionError("Could not detect decomposition that guarantees completion feasibility."))
 end
 
 function decompose!(model::JuMP.Model, decomposition::AbstractDecomposition;

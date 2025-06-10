@@ -12,7 +12,18 @@ function ConvexQP(model::JuMP.Model)
     x_ref = filter(!JuMP.is_parameter, JuMP.all_variables(model))
     return ConvexQP(p_ref, y_ref, x_ref)
 end
-
+function can_decompose(model::JuMP.Model, ::Type{ConvexQP})
+    obj_func = JuMP.objective_function(model)
+    if !(obj_func isa JuMP.QuadExpr)
+        return false
+    end
+    for x_i in filter(!JuMP.is_parameter, JuMP.all_variables(model))
+        if !(JuMP.UnorderedPair(x_i, x_i) in keys(obj_func.terms))
+            return false
+        end
+    end
+    return true
+end
 
 function convex_qp_builder(decomposition::ConvexQP, proj_fn, dual_model::JuMP.Model)
     p_vars = get_p(dual_model, decomposition)

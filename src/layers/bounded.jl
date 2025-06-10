@@ -12,6 +12,13 @@ function BoundDecomposition(model::JuMP.Model)
     zu_ref = JuMP.UpperBoundRef.(x_ref)
     return BoundDecomposition(p_ref, y_ref, zl_ref, zu_ref)
 end
+function can_decompose(model::JuMP.Model, ::Type{BoundDecomposition})
+    x_ref = filter(!JuMP.is_parameter, JuMP.all_variables(model))
+    if all(JuMP.has_lower_bound, x_ref) && all(JuMP.has_upper_bound, x_ref)
+        return true
+    end
+    return false
+end
 
 function bounded_builder(decomposition::BoundDecomposition, proj_fn, dual_model::JuMP.Model; completion=:exact, μ=1.0)
     p_vars = get_p(dual_model, decomposition)
