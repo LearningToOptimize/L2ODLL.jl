@@ -136,6 +136,14 @@ Then, the completion model is:
 \\
 & & z \in \mathcal{K}^*
 \end{aligned}
+\quad\quad\quad\quad
+\begin{aligned}
+& \min\nolimits_{x} & (c-A^\top y)^\top x
+\\
+& \;\;\phantom{\text{s.t.}} & Hx + h \in \mathcal{K}
+\\
+& & x \in \mathbb{R}^n
+\end{aligned}
 \end{equation}
 ```
 
@@ -177,10 +185,16 @@ Then, the completion model is:
 \\
 & & z_l \in \mathbb{R}_+^n,\; z_u \in \mathbb{R}_-^n
 \end{aligned}
+\quad\quad\quad\quad
+\begin{aligned}
+& \min\nolimits_{x} & (c-A^\top y)^\top x
+\\
+& & l \leq x \leq u
+\end{aligned}
 \end{equation}
 ```
 
-This model admits a closed form solution, $z_l = |c-A^\top y|^+$ and $z_u = -|c-A^\top y|^-$. Furthermore, the $x$ that defines the (sub-)gradient is given element-wise by $l$ if $z_l > 0$, $u$ if $z_u < 0$, and $x\in[l,u]$ otherwise.
+This model admits a closed form solution, $z_l = |c-A^\top y|^+$ and $z_u = -|c-A^\top y|^-$. Furthermore, the $x$ that defines the (sub-)gradient is given element-wise by $l$ if $c-A^\top y > 0$, $u$ if $c-A^\top y < 0$, and $x\in[l,u]$ otherwise.
 
 
 #### (Strictly) Convex QP
@@ -217,6 +231,12 @@ Then, the completion model is:
 & \;\;\text{s.t.} & Q z = c - A^\top y
 \\
 & & z \in \mathbb{R}^n
+\end{aligned}
+\quad\quad\quad\quad
+\begin{aligned}
+& \min\nolimits_{x} & x^\top Q x + (c-A^\top y)^\top x
+\\
+& & x \in \mathbb{R}^n
 \end{aligned}
 \end{equation}
 ```
