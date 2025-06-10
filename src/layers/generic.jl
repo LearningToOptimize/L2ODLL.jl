@@ -16,7 +16,7 @@ function jump_builder(decomposition::AbstractDecomposition, proj_fn::Function, d
     JuMP.set_optimizer(completion_model, optimizer)
     silent && JuMP.set_silent(completion_model)
     completion_model.ext[:🔒] = ReentrantLock()
-    # TODO: use DiffOpt to define frule/rrule
+    # TODO: define frule/rrule using b-Ax
     # TODO: handle infeasibility?
     return (y_pred, param_value) -> begin
         lock(completion_model.ext[:🔒])
