@@ -96,6 +96,9 @@ function build_cache(model::JuMP.Model, decomposition::AbstractDecomposition;
 end
 
 function get_cache(model::JuMP.Model)
+    if !haskey(model.ext, :_L2ODLL_cache)
+        throw(DecompositionError("No decomposition found. Please run L2ODLL.decompose! first."))
+    end
     return model.ext[:_L2ODLL_cache]
 end
 
