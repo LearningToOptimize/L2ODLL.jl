@@ -98,11 +98,8 @@ end
 
 abstract type BoundedCompletion end
 struct ExactBoundedCompletion <: BoundedCompletion end
-function complete_zlzu(
-    ::ExactBoundedCompletion,
-    z
-)
-    return max.(z, zero(eltype(z))), -max.(-z, zero(eltype(z)))
+function complete_zlzu(::ExactBoundedCompletion, zl_plus_zu)
+    return max.(zl_plus_zu, zero(eltype(zl_plus_zu))), -max.(-zl_plus_zu, zero(eltype(zl_plus_zu)))
 end
 
 struct LogBoundedCompletion{T<:Real} <: BoundedCompletion
@@ -110,19 +107,16 @@ struct LogBoundedCompletion{T<:Real} <: BoundedCompletion
     l::AbstractVector{T}
     u::AbstractVector{T}
 end
-
-function complete_zlzu(
-    c::LogBoundedCompletion,
-    z
-)
+function complete_zlzu(c::LogBoundedCompletion, zl_plus_zu)
     v = c.μ ./ (c.u - c.l)
-    w = eltype(z)(1//2) .* z
+    w = eltype(zl_plus_zu)(1//2) .* zl_plus_zu
     sqrtv2w2 = hypot.(v, w)
     return (
         v + w + sqrtv2w2,
-        -v - w + sqrtv2w2,
+        -v + w - sqrtv2w2,
     )
 end
+
 function make_completion_model(decomposition::BoundDecomposition, dual_model::JuMP.Model; log_barrier=false, conic=true)
     if log_barrier
         completion_model, (p_ref, y_ref, ref_map) = _make_completion_model(decomposition, dual_model)
