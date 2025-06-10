@@ -73,6 +73,14 @@ dobj_wrt_y = L2ODLL.dual_objective_gradient.(model, y_predicted_batch, param_val
 \\
 &amp; &amp; z \in \mathcal{K}^*
 \end{aligned}
+\quad\quad\quad\quad
+\begin{aligned}
+&amp; \min\nolimits_{x} &amp; (c-A^\top y)^\top x
+\\
+&amp; \;\;\phantom{\text{s.t.}} &amp; Hx + h \in \mathcal{K}
+\\
+&amp; &amp; x \in \mathbb{R}^n
+\end{aligned}
 \end{equation}\]</p><p>To train the neural network, we need the gradient of the optimal value with respect to the predicted <span>$y$</span>. This is <span>$\nabla_y = -b-Ax$</span> where <span>$x$</span> is the optimal dual solution corresponding to the affine constraints in the completion model. In the special cases below, we specify just the expression for <span>$x$</span> in this formula.</p><h4 id="Bounded-Decomposition"><a class="docs-heading-anchor" href="#Bounded-Decomposition">Bounded Decomposition</a><a id="Bounded-Decomposition-1"></a><a class="docs-heading-anchor-permalink" href="#Bounded-Decomposition" title="Permalink"></a></h4><p>When all primal variables have finite upper and lower bounds, a natural way to decompose the constraints is to have <span>$z$</span> correspond to the bound constraints, and <span>$y$</span> correspond to the main constraints, i.e.</p><p class="math-container">\[\begin{equation}
 \begin{aligned}
 &amp; \min\nolimits_{x} &amp; c^\top x
@@ -97,7 +105,13 @@ dobj_wrt_y = L2ODLL.dual_objective_gradient.(model, y_predicted_batch, param_val
 \\
 &amp; &amp; z_l \in \mathbb{R}_+^n,\; z_u \in \mathbb{R}_-^n
 \end{aligned}
-\end{equation}\]</p><p>This model admits a closed form solution, <span>$z_l = |c-A^\top y|^+$</span> and <span>$z_u = -|c-A^\top y|^-$</span>. Furthermore, the <span>$x$</span> that defines the (sub-)gradient is given element-wise by <span>$l$</span> if <span>$z_l &gt; 0$</span>, <span>$u$</span> if <span>$z_u &lt; 0$</span>, and <span>$x\in[l,u]$</span> otherwise.</p><h4 id="(Strictly)-Convex-QP"><a class="docs-heading-anchor" href="#(Strictly)-Convex-QP">(Strictly) Convex QP</a><a id="(Strictly)-Convex-QP-1"></a><a class="docs-heading-anchor-permalink" href="#(Strictly)-Convex-QP" title="Permalink"></a></h4><p>In the convex QP case, the primal has a strictly convex quadratic objective function, i.e. <span>$Q\succ 0$</span>. In that case it is natural to use the main constraints as the predicted set and to complete the quadratic slack dual variables.</p><p class="math-container">\[\begin{equation}
+\quad\quad\quad\quad
+\begin{aligned}
+&amp; \min\nolimits_{x} &amp; (c-A^\top y)^\top x
+\\
+&amp; &amp; l \leq x \leq u
+\end{aligned}
+\end{equation}\]</p><p>This model admits a closed form solution, <span>$z_l = |c-A^\top y|^+$</span> and <span>$z_u = -|c-A^\top y|^-$</span>. Furthermore, the <span>$x$</span> that defines the (sub-)gradient is given element-wise by <span>$l$</span> if <span>$c-A^\top y &gt; 0$</span>, <span>$u$</span> if <span>$c-A^\top y &lt; 0$</span>, and <span>$x\in[l,u]$</span> otherwise.</p><h4 id="(Strictly)-Convex-QP"><a class="docs-heading-anchor" href="#(Strictly)-Convex-QP">(Strictly) Convex QP</a><a id="(Strictly)-Convex-QP-1"></a><a class="docs-heading-anchor-permalink" href="#(Strictly)-Convex-QP" title="Permalink"></a></h4><p>In the convex QP case, the primal has a strictly convex quadratic objective function, i.e. <span>$Q\succ 0$</span>. In that case it is natural to use the main constraints as the predicted set and to complete the quadratic slack dual variables.</p><p class="math-container">\[\begin{equation}
 \begin{aligned}
 &amp; \min\nolimits_{x} &amp; x^\top Q x + c^\top x
 \\
@@ -121,4 +135,10 @@ dobj_wrt_y = L2ODLL.dual_objective_gradient.(model, y_predicted_batch, param_val
 \\
 &amp; &amp; z \in \mathbb{R}^n
 \end{aligned}
-\end{equation}\]</p><p>This model admits a closed form solution, <span>$z = Q^{-1}(c - A^\top y)$</span>. Furthermore, the closed form dual solution in this case is <span>$x=z$</span>.</p></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="lib/public/">Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.12.0 on <span class="colophon-date" title="Tuesday 10 June 2025 22:16">Tuesday 10 June 2025</span>. Using Julia version 1.11.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+\quad\quad\quad\quad
+\begin{aligned}
+&amp; \min\nolimits_{x} &amp; x^\top Q x + (c-A^\top y)^\top x
+\\
+&amp; &amp; x \in \mathbb{R}^n
+\end{aligned}
+\end{equation}\]</p><p>This model admits a closed form solution, <span>$z = Q^{-1}(c - A^\top y)$</span>. Furthermore, the closed form dual solution in this case is <span>$x=z$</span>.</p></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="lib/public/">Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.12.0 on <span class="colophon-date" title="Tuesday 10 June 2025 22:24">Tuesday 10 June 2025</span>. Using Julia version 1.11.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
