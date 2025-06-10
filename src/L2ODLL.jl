@@ -5,11 +5,15 @@ import JuMP
 import LinearAlgebra
 import MathOptSetDistances
 import SparseArrays
+import DifferentiationInterface
+import ForwardDiff
 
 const MOI = JuMP.MOI
 const MOIB = JuMP.MOIB
 const MOIU = JuMP.MOIU
 const MOSD = MathOptSetDistances
+const DI = DifferentiationInterface
+const ADTypes = DI.ADTypes
 
 abstract type AbstractDecomposition end  # must have p_ref and y_ref
 
@@ -24,6 +28,30 @@ struct DLLCache
     dll_layer::Function
     dual_model::JuMP.Model
     decomposition::AbstractDecomposition
+end
+
+function decompose!(model::JuMP.Model, decomposition::AbstractDecomposition;
+    optimizer=nothing, proj_fn=nothing, dll_layer_builder=nothing
+)
+    return build_cache(model, decomposition; optimizer, proj_fn, dll_layer_builder)
+end
+
+function dual_objective(model::JuMP.Model, y_predicted, param_value)
+    cache = get_cache(model)
+    @assert length.(y_predicted) == L2ODLL.y_shape(cache)
+    return cache.dll_layer(y_predicted, param_value)
+end
+
+function dual_objective_gradient(model::JuMP.Model, y_predicted, param_value; ad_type::ADTypes.AbstractADType=DI.AutoForwardDiff())
+    cache = get_cache(model)
+    y_shape = L2ODLL.y_shape(cache)
+    @assert length.(y_predicted) == y_shape
+    dobj_wrt_y = DI.gradient(
+        (y,p) -> dual_objective(model, L2ODLL.unflatten_y(y, y_shape), p),
+        ad_type,
+        L2ODLL.flatten_y(y_predicted), DI.Constant(param_value)
+    )
+    return L2ODLL.unflatten_y(dobj_wrt_y, y_shape)
 end
 
 function build_cache(model::JuMP.Model, decomposition::AbstractDecomposition;
@@ -43,7 +71,13 @@ function build_cache(model::JuMP.Model, decomposition::AbstractDecomposition;
             jump_builder(decomposition, proj_fn, dual_model, optimizer)
         end
 
-    return DLLCache(proj_fn, dll_layer, dual_model, decomposition)
+    cache = DLLCache(proj_fn, dll_layer, dual_model, decomposition)
+    model.ext[:_L2ODLL_cache] = cache
+    return cache
+end
+
+function get_cache(model::JuMP.Model)
+    return model.ext[:_L2ODLL_cache]
 end
 
 function make_completion_model(cache::DLLCache)

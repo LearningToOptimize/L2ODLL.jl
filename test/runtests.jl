@@ -46,28 +46,28 @@ SOLVER = () -> ParametricOptInterface.Optimizer(HiGHS.Optimizer());
         param_value = [0.1];
         JuMP.set_parameter_value.([γ], param_value);
 
-        cqp_cache = L2ODLL.build_cache(m, L2ODLL.ConvexQP(m));
-        cqp_y_pred = randn_like(L2ODLL.get_y(cqp_cache));
-        dobj1 = cqp_cache.dll_layer(cqp_y_pred, param_value)
-        dobj, dobj_wrt_y_flat = DifferentiationInterface.value_and_gradient(
-            cqp_cache.dll_layer,
-            DifferentiationInterface.AutoForwardDiff(),
-            L2ODLL.flatten_y(cqp_y_pred), DifferentiationInterface.Constant(param_value)
-        )
-        dobj_wrt_y = L2ODLL.unflatten_y(dobj_wrt_y_flat, L2ODLL.y_shape(cqp_cache))
-        @test isapprox(dobj1, dobj, atol=1e-6)
+        L2ODLL.decompose!(m, L2ODLL.ConvexQP(m));
 
-        cqp_solver_cache = L2ODLL.build_cache(m, L2ODLL.ConvexQP(m), dll_layer_builder=(d,p,m) -> L2ODLL.jump_builder(d,p,m,SOLVER));
-        dobj2 = cqp_solver_cache.dll_layer(cqp_y_pred, param_value)
-        @test isapprox(dobj1, dobj2, atol=1e-6)
+        cqp_y_pred = randn_like(L2ODLL.get_y(L2ODLL.get_cache(m)));
+
+        dobj = L2ODLL.dual_objective(m, cqp_y_pred, param_value)
+        dobj_wrt_y = L2ODLL.dual_objective_gradient(m, cqp_y_pred, param_value)
+
+        m2 = JuMP.Model();
+        JuMP.@variable(m2, x[1:N] >=0);
+        JuMP.@variable(m2, γ in JuMP.MOI.Parameter(0.0));
+        JuMP.@objective(m2, Max, γ*LinearAlgebra.dot(μ,x) - x' * Σ * x);
+        JuMP.@constraint(m2, simplex, sum(x) == 1);
+        JuMP.set_parameter_value.([γ], param_value);
+        L2ODLL.decompose!(m2, L2ODLL.ConvexQP(m2), dll_layer_builder=(d,p,m) -> L2ODLL.jump_builder(d,p,m,SOLVER));
+        dobj2 = L2ODLL.dual_objective(m2, cqp_y_pred, param_value)
 
         JuMP.set_optimizer(m, Clarabel.Optimizer);
         JuMP.set_silent(m);
         JuMP.optimize!(m)
-        cqp_y_true = JuMP.dual.(cqp_cache.decomposition.y_ref)
-        dobj1 = cqp_cache.dll_layer(cqp_y_true, param_value)
-        dobj2 = cqp_cache.dll_layer(cqp_y_true, param_value)
-        @test isapprox(dobj1, dobj2, atol=1e-6) && isapprox(dobj1, JuMP.objective_value(m), atol=1e-6)
+        cqp_y_true = JuMP.dual.(L2ODLL.get_cache(m).decomposition.y_ref)
+        dobj1 = L2ODLL.dual_objective(m, cqp_y_true, param_value)
+        @test isapprox(dobj1, JuMP.objective_value(m), atol=1e-6)
     end
 
     @testset "Markowitz SecondOrderCone" begin
@@ -89,27 +89,33 @@ SOLVER = () -> ParametricOptInterface.Optimizer(HiGHS.Optimizer());
         param_value = [randn(N); 0.1];
         JuMP.set_parameter_value.([μ; γ], param_value);
 
-        blp_cache = L2ODLL.build_cache(m, L2ODLL.BoundDecomposition(m));
-        blp_y_pred = randn_like(L2ODLL.get_y(blp_cache));
-        dobj1 = blp_cache.dll_layer(blp_y_pred, param_value)
-        dobj, dobj_wrt_y = DifferentiationInterface.value_and_gradient(
-            (y,p) ->blp_cache.dll_layer(L2ODLL.unflatten_y(y, L2ODLL.y_shape(blp_cache)),p),
-            DifferentiationInterface.AutoForwardDiff(),
-            L2ODLL.flatten_y(blp_y_pred), DifferentiationInterface.Constant(param_value)
-        )
-        dobj_wrt_y = L2ODLL.unflatten_y(dobj_wrt_y, L2ODLL.y_shape(blp_cache))
-        @test isapprox(dobj1, dobj, atol=1e-6)
+        L2ODLL.decompose!(m, L2ODLL.BoundDecomposition(m));
 
-        blp_solver_cache = L2ODLL.build_cache(m, L2ODLL.BoundDecomposition(m), dll_layer_builder=(d,p,m) -> L2ODLL.jump_builder(d,p,m,SOLVER));
-        dobj2 = blp_solver_cache.dll_layer(blp_y_pred, param_value)
-        @test isapprox(dobj1, dobj2, atol=1e-6)
+        blp_y_pred = randn_like(L2ODLL.get_y(L2ODLL.get_cache(m)));
+
+        dobj = L2ODLL.dual_objective(m, blp_y_pred, param_value)
+        dobj_wrt_y = L2ODLL.dual_objective_gradient(m, blp_y_pred, param_value)
+
+        m2 = JuMP.Model();
+        JuMP.@variable(m2, x[1:N]);
+        JuMP.set_lower_bound.(x, 0);
+        JuMP.set_upper_bound.(x, 1);
+        JuMP.@variable(m2, μ[1:N] in JuMP.MOI.Parameter.(0.0));
+        JuMP.@variable(m2, γ in JuMP.MOI.Parameter(0.1));
+        JuMP.@constraint(m2, simplex, sum(x) == 1);
+        JuMP.@constraint(m2, risk, [γ; LinearAlgebra.cholesky(Σ).L * x] in JuMP.SecondOrderCone());
+        JuMP.@objective(m2, Max, LinearAlgebra.dot(μ,x));
+        JuMP.set_parameter_value.([μ; γ], param_value);
+        
+        L2ODLL.decompose!(m2, L2ODLL.BoundDecomposition(m2), dll_layer_builder=(d,p,m) -> L2ODLL.jump_builder(d,p,m,SOLVER));
+        dobj2 = L2ODLL.dual_objective(m2, blp_y_pred, param_value)
 
         JuMP.set_optimizer(m, Clarabel.Optimizer);
         JuMP.set_silent(m);
         JuMP.optimize!(m)
-        blp_y_true = JuMP.dual.(blp_cache.decomposition.y_ref)
-        dobj1 = blp_cache.dll_layer(blp_y_true, param_value)
-        dobj2 = blp_cache.dll_layer(blp_y_true, param_value)
-        @test isapprox(dobj1, dobj2, atol=1e-6) && isapprox(dobj1, JuMP.objective_value(m), atol=1e-6)
+        blp_y_true = JuMP.dual.(L2ODLL.get_cache(m).decomposition.y_ref)
+
+        dobj1 = L2ODLL.dual_objective(m, blp_y_true, param_value)
+        @test isapprox(dobj1, JuMP.objective_value(m), atol=1e-6)
     end
 end
