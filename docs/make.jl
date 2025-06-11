@@ -18,8 +18,9 @@ makedocs(
         )),
     ),
     pages = [
-        "Home" => "index.md",
-        "Reference" => "lib/public.md",
+        "Home" => "markdown/index.md",
+        "Math Background" => "markdown/math_background.md",
+        "Reference" => "markdown/public.md",
     ],
 )
 
