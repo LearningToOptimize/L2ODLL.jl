@@ -1,5 +1,3 @@
-## Math Background
-
 ### Decomposition
 
 In DLL, the primal constraints (dual variables) are decomposed into a predicted set and a completed set.
