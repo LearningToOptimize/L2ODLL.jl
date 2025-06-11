@@ -96,7 +96,7 @@ end
 
 function _find_and_return_value(vr, var_lists, values)
     for (vars, val) in zip(var_lists, values)
-        idx = findfirst(_vr -> JuMP.index(_vr) == JuMP.index(vr), vars)
+        idx = findfirst(_vr -> _vr == vr, vars)
         !isnothing(idx) && return val[idx]
     end
     throw(ArgumentError("Variable $vr not found in any variable list"))

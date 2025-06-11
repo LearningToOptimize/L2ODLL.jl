@@ -5,6 +5,7 @@ version = "1.0.0-DEV"
 
 [deps]
 DifferentiationInterface = "a0c0ee7d-e4b9-4e03-894e-1c5f64a51d63"
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 Dualization = "191a621a-6537-11e9-281d-650236a99e60"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 JuMP = "4076af6c-e467-56ae-b986-b466b2749572"
@@ -14,7 +15,8 @@ MathOptSetDistances = "3b969827-a86c-476c-9527-bb6f1a8fbad5"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 
 [compat]
-Dualization = "=0.6.0"
+Documenter = "1.12.0"
+Dualization = "=0.6.1"
 MathOptSetDistances = "=0.2.11"
 
 [extras]

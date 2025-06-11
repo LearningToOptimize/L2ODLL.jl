@@ -1,6 +1,4 @@
-import Pkg
 import JSON, HTTP
-Pkg.add(url="https://github.com/klamike/Dualization.jl", rev="mk/get_dual_slack_variable")
 
 using L2ODLL
 using Test
@@ -16,19 +14,12 @@ function test_vectorize_bridge_matches_moi()
     ).body))[1]["sha"] == "4e2630554afcde0b0b7c3e680e7fd3666e9e3825"
 end
 
-function test_dualization_pr()
-    @test HTTP.get(
-        "https://api.github.com/repos/jump-dev/Dualization.jl/pulls/198/merge",
-        status_exception=false
-    ).status == 404
-end
 
 randn_like(vecofvecs) = [randn(length(v)) for v in vecofvecs];
 SOLVER = () -> ParametricOptInterface.Optimizer(HiGHS.Optimizer());
 
 @testset "L2ODLL.jl" begin
     test_vectorize_bridge_matches_moi()
-    test_dualization_pr()
     @testset "Markowitz Frontier" begin
         μ = [11.5; 9.5; 6] / 100
         Σ = [
