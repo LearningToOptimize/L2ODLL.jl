@@ -1,4 +1,4 @@
-### Decomposition
+# Decompositions
 
 In DLL, the primal constraints (dual variables) are decomposed into a predicted set and a completed set.
 Consider the primal-dual pair:
@@ -69,7 +69,7 @@ Then, the completion model is:
 To train the neural network, we need the gradient of the optimal value with respect to the predicted $y$. This is $\nabla_y = -b-Ax$ where $x$ is the optimal dual solution corresponding to the affine constraints in the completion model. In the special cases below, we specify just the expression for $x$ in this formula.
 
 
-#### Bounded Decomposition
+## Bounded Decomposition
 
 When all primal variables have finite upper and lower bounds, a natural way to decompose the constraints is to have $z$ correspond to the bound constraints, and $y$ correspond to the main constraints, i.e.
 
@@ -116,7 +116,7 @@ Then, the completion model is:
 This model admits a closed form solution, $z_l = |c-A^\top y|^+$ and $z_u = -|c-A^\top y|^-$. Furthermore, the $x$ that defines the (sub-)gradient is given element-wise by $l$ if $c-A^\top y > 0$, $u$ if $c-A^\top y < 0$, and $x\in[l,u]$ otherwise.
 
 
-#### (Strictly) Convex QP
+## (Strictly) Convex QP
 
 In the convex QP case, the primal has a strictly convex quadratic objective function, i.e. $Q\succ 0$. In that case it is natural to use the main constraints as the predicted set and to complete the quadratic slack dual variables.
 
@@ -162,7 +162,7 @@ Then, the completion model is:
 
 This model admits a closed form solution, $z = \frac{1}{2}Q^{-1}(c - A^\top y)$. Furthermore, the closed form dual solution in this case is $x=z$.
 
-### Decomposition detection
+# Decomposition detection
 
 !!! warning
     The decomposition detection is very basic, based on minimizing the number of predicted dual variables. In some cases, it may actually be preferred to to predict more dual variables, if they are for some reason easier to learn. In that case, users should manually specify the decomposition.
@@ -176,7 +176,7 @@ The current detection logic is as follows:
 
 The order of preference is to maximize the number of completed dual variables among the closed-form solutions, and if no closed-form solution is available, to use the generic decomposition. Thus, the bounded decomposition is preferred over the convex QP decomposition, as illustrated by the following example.
 
-#### Bounded with quadratic objective
+## Bounded with quadratic objective
 
 In the case where bounded decomposition is used with a model that has a quadratic objective, L2ODLL prefers the bounded decomposition, leading to the following models.
 ```math
