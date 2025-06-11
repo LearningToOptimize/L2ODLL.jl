@@ -123,7 +123,7 @@ dobj_wrt_y = L2ODLL.dual_objective_gradient.(model, y_predicted_batch, param_val
 \begin{aligned}
 &amp; \max\nolimits_{y} &amp; - b^\top y - z^\top Q z
 \\
-&amp; \;\;\text{s.t.} &amp; A^\top y + Qz = c
+&amp; \;\;\text{s.t.} &amp; A^\top y + 2Qz = c
 \\
 &amp; &amp; y \in \mathcal{C}^*,\; z \in \mathbb{R}^n
 \end{aligned}
@@ -131,7 +131,7 @@ dobj_wrt_y = L2ODLL.dual_objective_gradient.(model, y_predicted_batch, param_val
 \begin{aligned}
 &amp; \max\nolimits_{z} &amp; - z^\top Q z - b^\top y
 \\
-&amp; \;\;\text{s.t.} &amp; Q z = c - A^\top y
+&amp; \;\;\text{s.t.} &amp; Q z = \frac{1}{2}(c - A^\top y)
 \\
 &amp; &amp; z \in \mathbb{R}^n
 \end{aligned}
@@ -141,7 +141,7 @@ dobj_wrt_y = L2ODLL.dual_objective_gradient.(model, y_predicted_batch, param_val
 \\
 &amp; &amp; x \in \mathbb{R}^n
 \end{aligned}
-\end{equation}\]</p><p>This model admits a closed form solution, <span>$z = Q^{-1}(c - A^\top y)$</span>. Furthermore, the closed form dual solution in this case is <span>$x=z$</span>.</p><h3 id="Decomposition-detection"><a class="docs-heading-anchor" href="#Decomposition-detection">Decomposition detection</a><a id="Decomposition-detection-1"></a><a class="docs-heading-anchor-permalink" href="#Decomposition-detection" title="Permalink"></a></h3><div class="admonition is-warning" id="Warning-16507bfbd932b9e3"><header class="admonition-header">Warning<a class="admonition-anchor" href="#Warning-16507bfbd932b9e3" title="Permalink"></a></header><div class="admonition-body"><p>The decomposition detection is very basic, based on minimizing the number of predicted dual variables. In some cases, it may actually be preferred to to predict more dual variables, if they are for some reason easier to learn. In that case, users should manually specify the decomposition.</p></div></div><p>L2ODLL automatically detects the decomposition to use based on the model. The current detection logic is as follows:</p><ul><li>If all variables have finite upper and lower bounds, use the bounded decomposition.</li><li>If all variables have a quadratic objective term, use the convex QP decomposition.</li><li>Otherwise, use the generic decomposition.</li></ul><p>The order of preference is to maximize the number of completed dual variables among the closed-form solutions, and if no closed-form solution is available, to use the generic decomposition. Thus, the bounded decomposition is preferred over the convex QP decomposition, as illustrated by the following example.</p><h4 id="Bounded-with-quadratic-objective"><a class="docs-heading-anchor" href="#Bounded-with-quadratic-objective">Bounded with quadratic objective</a><a id="Bounded-with-quadratic-objective-1"></a><a class="docs-heading-anchor-permalink" href="#Bounded-with-quadratic-objective" title="Permalink"></a></h4><p>In the case where bounded decomposition is used with a model that has a quadratic objective, L2ODLL prefers the bounded decomposition, leading to the following models.</p><p class="math-container">\[\begin{equation}
+\end{equation}\]</p><p>This model admits a closed form solution, <span>$z = \frac{1}{2}Q^{-1}(c - A^\top y)$</span>. Furthermore, the closed form dual solution in this case is <span>$x=z$</span>.</p><h3 id="Decomposition-detection"><a class="docs-heading-anchor" href="#Decomposition-detection">Decomposition detection</a><a id="Decomposition-detection-1"></a><a class="docs-heading-anchor-permalink" href="#Decomposition-detection" title="Permalink"></a></h3><div class="admonition is-warning" id="Warning-16507bfbd932b9e3"><header class="admonition-header">Warning<a class="admonition-anchor" href="#Warning-16507bfbd932b9e3" title="Permalink"></a></header><div class="admonition-body"><p>The decomposition detection is very basic, based on minimizing the number of predicted dual variables. In some cases, it may actually be preferred to to predict more dual variables, if they are for some reason easier to learn. In that case, users should manually specify the decomposition.</p></div></div><p>L2ODLL automatically detects the decomposition to use based on the model. The current detection logic is as follows:</p><ul><li>If all variables have finite upper and lower bounds, use the bounded decomposition.</li><li>If all variables have a quadratic objective term, use the convex QP decomposition.</li><li>Otherwise, use the generic decomposition.</li></ul><p>The order of preference is to maximize the number of completed dual variables among the closed-form solutions, and if no closed-form solution is available, to use the generic decomposition. Thus, the bounded decomposition is preferred over the convex QP decomposition, as illustrated by the following example.</p><h4 id="Bounded-with-quadratic-objective"><a class="docs-heading-anchor" href="#Bounded-with-quadratic-objective">Bounded with quadratic objective</a><a id="Bounded-with-quadratic-objective-1"></a><a class="docs-heading-anchor-permalink" href="#Bounded-with-quadratic-objective" title="Permalink"></a></h4><p>In the case where bounded decomposition is used with a model that has a quadratic objective, L2ODLL prefers the bounded decomposition, leading to the following models.</p><p class="math-container">\[\begin{equation}
 \begin{aligned}
 &amp; \min\nolimits_{x} &amp; x^\top Q x + c^\top x
 \\
@@ -153,7 +153,7 @@ dobj_wrt_y = L2ODLL.dual_objective_gradient.(model, y_predicted_batch, param_val
 \begin{aligned}
 &amp; \max\nolimits_{w,y,z_l,z_u} &amp; - b^\top y - w^\top Q w - l^\top z_l - u^\top z_u
 \\
-&amp; \;\;\text{s.t.} &amp; A^\top y + Qw + z_l + z_u = c
+&amp; \;\;\text{s.t.} &amp; A^\top y + 2Qw + z_l + z_u = c
 \\
 &amp; &amp; y \in \mathcal{C}^*,\; w \in \mathbb{R}^n,\; z_l \in \mathbb{R}_+^n,\; z_u \in \mathbb{R}_-^n
 \end{aligned}
@@ -161,17 +161,17 @@ dobj_wrt_y = L2ODLL.dual_objective_gradient.(model, y_predicted_batch, param_val
 \begin{aligned}
 &amp; \max\nolimits_{z_l,z_u} &amp; - l^\top z_l - u^\top z_u - b^\top y - w^\top Q w
 \\
-&amp; \;\;\text{s.t.} &amp; z_l + z_u = c - A^\top y - Qw   
+&amp; \;\;\text{s.t.} &amp; z_l + z_u = c - A^\top y - 2Qw   
 \\
 &amp; &amp; z_l \in \mathbb{R}_+^n,\; z_u \in \mathbb{R}_-^n
 \end{aligned}
 \quad\quad\quad\quad
 \begin{aligned}
-&amp; \min\nolimits_{x} &amp; (c-A^\top y - Qw)^\top x
+&amp; \min\nolimits_{x} &amp; (c-A^\top y - 2Qw)^\top x
 \\
 &amp; &amp; l \leq x \leq u
 \end{aligned}
-\end{equation}\]</p><p>This model admits a closed form solution, <span>$z_l = |c-A^\top y-Qw|^+$</span> and <span>$z_u = -|c-A^\top y-Qw|^-$</span>. Furthermore, the <span>$x$</span> that defines the (sub-)gradient is given element-wise by <span>$l$</span> if <span>$c-A^\top y-Qw &gt; 0$</span>, <span>$u$</span> if <span>$c-A^\top y-Qw &lt; 0$</span>, and <span>$x\in[l,u]$</span> otherwise. Note that the gradient of the objective with respect to <span>$w$</span> is <span>$\nabla_w = -(Q+Q^\top)w -Q^\top x$</span>.</p><p>This completes <span>$2n$</span> dual variables, leaving the neural network to predict <span>$m+n$</span> dual variables.</p><p>Consider the convex QP decomposition in this case:</p><p class="math-container">\[\begin{equation}
+\end{equation}\]</p><p>This model admits a closed form solution, <span>$z_l = |c-A^\top y-2Qw|^+$</span> and <span>$z_u = -|c-A^\top y-2Qw|^-$</span>. Furthermore, the <span>$x$</span> that defines the (sub-)gradient is given element-wise by <span>$l$</span> if <span>$c-A^\top y-2Qw &gt; 0$</span>, <span>$u$</span> if <span>$c-A^\top y-2Qw &lt; 0$</span>, and <span>$x\in[l,u]$</span> otherwise. Note that the gradient of the objective with respect to <span>$w$</span> is <span>$\nabla_w = -(Q+Q^\top)w - 2Q^\top x$</span>.</p><p>This completes <span>$2n$</span> dual variables, leaving the neural network to predict <span>$m+n$</span> dual variables.</p><p>Consider the convex QP decomposition in this case:</p><p class="math-container">\[\begin{equation}
 \begin{aligned}
 &amp; \min\nolimits_{x} &amp; x^\top Q x + c^\top x
 \\
@@ -183,7 +183,7 @@ dobj_wrt_y = L2ODLL.dual_objective_gradient.(model, y_predicted_batch, param_val
 \begin{aligned}
 &amp; \max\nolimits_{w,y,z_l,z_u} &amp; - b^\top y - w^\top Q w - l^\top z_l - u^\top z_u
 \\
-&amp; \;\;\text{s.t.} &amp; A^\top y + Qw + z_l + z_u = c
+&amp; \;\;\text{s.t.} &amp; A^\top y + 2Qw + z_l + z_u = c
 \\
 &amp; &amp; y \in \mathcal{C}^*,\; w \in \mathbb{R}^n,\; z_l \in \mathbb{R}_+^n,\; z_u \in \mathbb{R}_-^n
 \end{aligned}
@@ -191,7 +191,7 @@ dobj_wrt_y = L2ODLL.dual_objective_gradient.(model, y_predicted_batch, param_val
 \begin{aligned}
 &amp; \max\nolimits_{w} &amp; - w^\top Q w - b^\top y - l^\top z_l - u^\top z_u 
 \\
-&amp; \;\;\text{s.t.} &amp; Qw = c - A^\top y - z_l - z_u   
+&amp; \;\;\text{s.t.} &amp; Qw = \frac{1}{2}(c - A^\top y - z_l - z_u)   
 \\
 &amp; &amp; w \in \mathbb{R}^n
 \end{aligned}
@@ -201,7 +201,7 @@ dobj_wrt_y = L2ODLL.dual_objective_gradient.(model, y_predicted_batch, param_val
 \\
 &amp; &amp; x \in \mathbb{R}^n
 \end{aligned}
-\end{equation}\]</p><p>This model admits a closed form solution, <span>$w = Q^{-1}(c - A^\top y - z_l - z_u)$</span>. Furthermore, the closed form dual solution in this case is <span>$x=w$</span>.</p><p>This completes <span>$n$</span> dual variables, leaving the neural network to predict <span>$m+2n$</span> dual variables.</p><p>Naturally, one may consider using both decompositions, i.e. to predict only the <span>$y$</span> variables and to recover <span>$w$</span>, <span>$z_l$</span>, and <span>$z_u$</span>. Let us consider this case:</p><p class="math-container">\[\begin{equation}
+\end{equation}\]</p><p>This model admits a closed form solution, <span>$w = \frac{1}{2}Q^{-1}(c - A^\top y - z_l - z_u)$</span>. Furthermore, the closed form dual solution in this case is <span>$x=w$</span>.</p><p>This completes <span>$n$</span> dual variables, leaving the neural network to predict <span>$m+2n$</span> dual variables.</p><p>Naturally, one may consider using both decompositions, i.e. to predict only the <span>$y$</span> variables and to recover <span>$w$</span>, <span>$z_l$</span>, and <span>$z_u$</span>. Let us consider this case:</p><p class="math-container">\[\begin{equation}
 \begin{aligned}
 &amp; \min\nolimits_{x} &amp; x^\top Q x + c^\top x
 \\
@@ -213,7 +213,7 @@ dobj_wrt_y = L2ODLL.dual_objective_gradient.(model, y_predicted_batch, param_val
 \begin{aligned}
 &amp; \max\nolimits_{w,y,z_l,z_u} &amp; - b^\top y - w^\top Q w - l^\top z_l - u^\top z_u
 \\
-&amp; \;\;\text{s.t.} &amp; A^\top y + Qw + z_l + z_u = c
+&amp; \;\;\text{s.t.} &amp; A^\top y + 2Qw + z_l + z_u = c
 \\
 &amp; &amp; y \in \mathcal{C}^*,\; w \in \mathbb{R}^n,\; z_l \in \mathbb{R}_+^n,\; z_u \in \mathbb{R}_-^n
 \end{aligned}
@@ -221,7 +221,7 @@ dobj_wrt_y = L2ODLL.dual_objective_gradient.(model, y_predicted_batch, param_val
 \begin{aligned}
 &amp; \max\nolimits_{w,z_l,z_u} &amp; - w^\top Q w - l^\top z_l - u^\top z_u - b^\top y
 \\
-&amp; \;\;\text{s.t.} &amp; Qw + z_l + z_u = c - A^\top y
+&amp; \;\;\text{s.t.} &amp; 2Qw + z_l + z_u = c - A^\top y
 \\
 &amp; &amp; w \in \mathbb{R}^n,\; z_l \in \mathbb{R}_+^n,\; z_u \in \mathbb{R}_-^n
 \end{aligned}
@@ -231,4 +231,4 @@ dobj_wrt_y = L2ODLL.dual_objective_gradient.(model, y_predicted_batch, param_val
 \\
 &amp; &amp; l \leq x \leq u
 \end{aligned}
-\end{equation}\]</p><p>This is an <span>$n$</span>-dimensional box-constrained convex QP, for which there is no closed form solution. Note that by using a custom generic decomposition, L2ODLL can still be used to set up this problem and solve it using a JuMP-compatible QP solver.</p></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="lib/public/">Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.12.0 on <span class="colophon-date" title="Wednesday 11 June 2025 00:49">Wednesday 11 June 2025</span>. Using Julia version 1.11.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+\end{equation}\]</p><p>This is an <span>$n$</span>-dimensional box-constrained convex QP, for which there is no closed form solution. Note that by using a custom generic decomposition, L2ODLL can still be used to set up this problem and solve it using a JuMP-compatible QP solver.</p></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="lib/public/">Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.12.0 on <span class="colophon-date" title="Wednesday 11 June 2025 00:54">Wednesday 11 June 2025</span>. Using Julia version 1.11.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
