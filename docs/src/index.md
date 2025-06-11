@@ -300,7 +300,7 @@ Then, the completion model is:
 \end{equation}
 ```
 
-This model admits a closed form solution, $z_l = |c-A^\top y-Qw|^+$ and $z_u = -|c-A^\top y-Qw|^-$. Furthermore, the $x$ that defines the (sub-)gradient is given element-wise by $l$ if $c-A^\top y-Qw > 0$, $u$ if $c-A^\top y-Qw < 0$, and $x\in[l,u]$ otherwise.
+This model admits a closed form solution, $z_l = |c-A^\top y-Qw|^+$ and $z_u = -|c-A^\top y-Qw|^-$. Furthermore, the $x$ that defines the (sub-)gradient is given element-wise by $l$ if $c-A^\top y-Qw > 0$, $u$ if $c-A^\top y-Qw < 0$, and $x\in[l,u]$ otherwise. Note that the gradient of the objective with respect to $w$ is $\nabla_w = -Qw -Q^\top x$.
 
 This completes $2n$ dual variables, leaving the neural network to predict $m+n$ dual variables.
 
@@ -350,3 +350,45 @@ This model admits a closed form solution, $w = Q^{-1}(c - A^\top y - z_l - z_u)$
 
 This completes $n$ dual variables, leaving the neural network to predict $m+2n$ dual variables.
 
+Naturally, one may consider using both decompositions, i.e. to predict only the $y$ variables and to recover $w$, $z_l$, and $z_u$. Let us consider this case:
+```math
+\begin{equation}
+\begin{aligned}
+& \min\nolimits_{x} & x^\top Q x + c^\top x
+\\
+& \;\;\text{s.t.} & Ax + b \in \mathcal{C}
+\\
+& & l \leq x \leq u
+\end{aligned}
+\quad\quad\quad\quad
+\begin{aligned}
+& \max\nolimits_{w,y,z_l,z_u} & - b^\top y - w^\top Q w - l^\top z_l - u^\top z_u
+\\
+& \;\;\text{s.t.} & A^\top y + Qw + z_l + z_u = c
+\\
+& & y \in \mathcal{C}^*,\; w \in \mathbb{R}^n,\; z_l \in \mathbb{R}_+^n,\; z_u \in \mathbb{R}_-^n
+\end{aligned}
+\end{equation}
+```
+
+Then, the completion model is:
+
+```math
+\begin{equation}
+\begin{aligned}
+& \max\nolimits_{w,z_l,z_u} & - w^\top Q w - l^\top z_l - u^\top z_u - b^\top y
+\\
+& \;\;\text{s.t.} & Qw + z_l + z_u = c - A^\top y
+\\
+& & w \in \mathbb{R}^n,\; z_l \in \mathbb{R}_+^n,\; z_u \in \mathbb{R}_-^n
+\end{aligned}
+\quad\quad\quad\quad
+\begin{aligned}
+& \min\nolimits_{x} & x^\top Q x + (c-A^\top y)^\top x
+\\
+& & l \leq x \leq u
+\end{aligned}
+\end{equation}
+```
+
+This is an $n$-dimensional box-constrained convex QP, for which there is no closed form solution. Note that by using a custom generic decomposition, L2ODLL can still be used to set up this problem and solve it using a JuMP-compatible QP solver.
