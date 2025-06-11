@@ -19,7 +19,10 @@ makedocs(
     ),
     pages = [
         "Home" => "index.md",
-        "Math Background" => "math_background.md",
+        "Background" => [
+            "background/decompositions.md",
+            "background/decomposition_detection.md",
+        ],
         "Reference" => "public.md",
     ],
 )
