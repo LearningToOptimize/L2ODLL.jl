@@ -28,7 +28,7 @@ end
 
 function bounded_builder(decomposition::BoundDecomposition, proj_fn, dual_model::JuMP.Model; completion=:exact, μ=1.0)
     p_vars = get_p(dual_model, decomposition)
-    y_vars = get_y(dual_model, decomposition)
+    y_vars = get_y_dual(dual_model, decomposition)
     zl_vars = only.(get_zl(dual_model, decomposition))
     zu_vars = only.(get_zu(dual_model, decomposition))
     types = filter(

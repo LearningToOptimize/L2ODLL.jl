@@ -48,7 +48,7 @@ SOLVER = () -> ParametricOptInterface.Optimizer(HiGHS.Optimizer());
 
         L2ODLL.decompose!(m);
 
-        cqp_y_pred = randn_like(L2ODLL.get_y(L2ODLL.get_cache(m)));
+        cqp_y_pred = randn_like(L2ODLL.get_y_dual(m));
 
         dobj = L2ODLL.dual_objective(m, cqp_y_pred, param_value)
         dobj_wrt_y = L2ODLL.dual_objective_gradient(m, cqp_y_pred, param_value)
@@ -65,7 +65,7 @@ SOLVER = () -> ParametricOptInterface.Optimizer(HiGHS.Optimizer());
         JuMP.set_optimizer(m, Clarabel.Optimizer);
         JuMP.set_silent(m);
         JuMP.optimize!(m)
-        cqp_y_true = JuMP.dual.(L2ODLL.get_cache(m).decomposition.y_ref)
+        cqp_y_true = JuMP.dual.(L2ODLL.get_y(m))
         dobj1 = L2ODLL.dual_objective(m, cqp_y_true, param_value)
         @test isapprox(dobj1, JuMP.objective_value(m), atol=1e-6)
     end
@@ -91,7 +91,7 @@ SOLVER = () -> ParametricOptInterface.Optimizer(HiGHS.Optimizer());
 
         L2ODLL.decompose!(m);
 
-        blp_y_pred = randn_like(L2ODLL.get_y(L2ODLL.get_cache(m)));
+        blp_y_pred = randn_like(L2ODLL.get_y_dual(m));
 
         dobj = L2ODLL.dual_objective(m, blp_y_pred, param_value)
         dobj_wrt_y = L2ODLL.dual_objective_gradient(m, blp_y_pred, param_value)
@@ -113,7 +113,7 @@ SOLVER = () -> ParametricOptInterface.Optimizer(HiGHS.Optimizer());
         JuMP.set_optimizer(m, Clarabel.Optimizer);
         JuMP.set_silent(m);
         JuMP.optimize!(m)
-        blp_y_true = JuMP.dual.(L2ODLL.get_cache(m).decomposition.y_ref)
+        blp_y_true = JuMP.dual.(L2ODLL.get_y(m))
 
         dobj1 = L2ODLL.dual_objective(m, blp_y_true, param_value)
         @test isapprox(dobj1, JuMP.objective_value(m), atol=1e-6)

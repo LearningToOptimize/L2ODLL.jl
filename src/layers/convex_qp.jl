@@ -33,7 +33,7 @@ end
 
 function convex_qp_builder(decomposition::ConvexQP, proj_fn, dual_model::JuMP.Model)
     p_vars = get_p(dual_model, decomposition)
-    y_vars = get_y(dual_model, decomposition)
+    y_vars = get_y_dual(dual_model, decomposition)
     x_vars = get_x(decomposition)
     if !all(x -> has_quadslack(dual_model, x), x_vars)
         @warn "Some primal variables do not have a quadratic objective term, " *

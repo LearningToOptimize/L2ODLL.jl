@@ -132,18 +132,56 @@ function make_vector_data(cache::DLLCache; M=SparseArrays.SparseMatrixCSC{Float6
     completion_data = convert(VectorStandardFormData{M,V,T}, model_to_data(completion_model))
     return completion_data, y_sets, (p_ref, y_ref, ref_map)
 end
-function get_y(cache::DLLCache)
-    return get_y(cache.dual_model, cache.decomposition)
+
+"""
+    get_y(model::JuMP.Model)
+
+Get the primal constraints corresponding to the `y` variables in the decomposition.
+"""
+function get_y(model::JuMP.Model)
+    return get_cache(model).decomposition.y_ref
 end
 
+"""
+    get_y_dual(model::JuMP.Model)
+
+Get the dual variables corresponding to the `y` variables in the decomposition.
+    These are VariableRefs belonging to the dual model, not the passed-in `model`.
+"""
+function get_y_dual(model::JuMP.Model)
+    return get_y_dual(get_cache(model))
+end
+function get_y_dual(cache::DLLCache)
+    return get_y_dual(cache.dual_model, cache.decomposition)
+end
+
+"""
+    y_shape(model::JuMP.Model)
+
+Get the shape of the `y` variables in the decomposition.
+    This is a Vector{Int} where each entry is the number of dual variables for that constraint.
+"""
+function y_shape(model::JuMP.Model)
+    return y_shape(get_cache(model))
+end
 function y_shape(cache::DLLCache)
-    return length.(get_y(cache.dual_model, cache.decomposition))
+    return length.(get_y_dual(cache.dual_model, cache.decomposition))
 end
 
+"""
+    flatten_y(y::AbstractVector)
+
+Flatten a vector of `y` variables into a single vector, i.e. Vector{Vector{Float64}} -> Vector{Float64}.
+"""
 function flatten_y(y::AbstractVector)
     return reduce(vcat, y)
 end
 
+"""
+    unflatten_y(y::AbstractVector, y_shape::AbstractVector{Int})
+
+Unflatten a vector of flattened `y` variables into a vector of vectors, i.e. Vector{Float64} -> Vector{Vector{Float64}}.
+"""
 function unflatten_y(y::AbstractVector, y_shape::AbstractVector{Int})
     return [y[start_idx:start_idx + shape - 1] for (start_idx, shape) in enumerate(y_shape)]
 end

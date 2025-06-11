@@ -78,7 +78,7 @@ function _make_completion_model(decomposition::AbstractDecomposition, dual_model
 
     # mark y and p as parameters (optimizing over z only)
     p_ref = getindex.(ref_map, get_p(dual_model, decomposition))
-    y_ref = getindex.(ref_map, get_y(dual_model, decomposition))
+    y_ref = getindex.(ref_map, get_y_dual(dual_model, decomposition))
     y_ref_flat = reduce(vcat, y_ref)
     JuMP.@constraint(completion_model, y_ref_flat .∈ MOI.Parameter.(zeros(length(y_ref_flat))))
     JuMP.@constraint(completion_model, p_ref .∈ MOI.Parameter.(zeros(length(p_ref))))
@@ -93,7 +93,7 @@ function make_vector_data(decomposition::AbstractDecomposition, dual_model::JuMP
     return data, y_sets, (p_ref, y_ref, ref_map)
 end
 
-function get_y(dual_model, decomposition::AbstractDecomposition)
+function get_y_dual(dual_model, decomposition::AbstractDecomposition)
     return Dualization._get_dual_variables.(dual_model, decomposition.y_ref)
 end
 
