@@ -300,7 +300,7 @@ Then, the completion model is:
 \end{equation}
 ```
 
-This model admits a closed form solution, $z_l = |c-A^\top y-Qw|^+$ and $z_u = -|c-A^\top y-Qw|^-$. Furthermore, the $x$ that defines the (sub-)gradient is given element-wise by $l$ if $c-A^\top y-Qw > 0$, $u$ if $c-A^\top y-Qw < 0$, and $x\in[l,u]$ otherwise. Note that the gradient of the objective with respect to $w$ is $\nabla_w = -Qw -Q^\top x$.
+This model admits a closed form solution, $z_l = |c-A^\top y-Qw|^+$ and $z_u = -|c-A^\top y-Qw|^-$. Furthermore, the $x$ that defines the (sub-)gradient is given element-wise by $l$ if $c-A^\top y-Qw > 0$, $u$ if $c-A^\top y-Qw < 0$, and $x\in[l,u]$ otherwise. Note that the gradient of the objective with respect to $w$ is $\nabla_w = -(Q+Q^\top)w -Q^\top x$.
 
 This completes $2n$ dual variables, leaving the neural network to predict $m+n$ dual variables.
 
