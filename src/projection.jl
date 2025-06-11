@@ -1,3 +1,9 @@
+
+"""
+    make_proj_fn(decomposition::AbstractDecomposition, dual_model::JuMP.Model)
+
+Create a function that projects the raw dual variable predictions onto their dual cone constraints.
+"""
 function make_proj_fn(decomposition::AbstractDecomposition, dual_model::JuMP.Model)
     sets = get_y_sets(dual_model, decomposition)
     # TODO: detect if there are any constraints in only y and p that we aren't projecting on to

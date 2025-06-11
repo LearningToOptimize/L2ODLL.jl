@@ -3,6 +3,12 @@ struct ConvexQP <: AbstractDecomposition
     y_ref::Vector{JuMP.ConstraintRef}
     x_ref::Vector{JuMP.VariableRef}
 end
+
+"""
+    ConvexQP(model::JuMP.Model)
+
+Create a decomposition using `z` for the quadratic slacks and `y` for all constraints.
+"""
 function ConvexQP(model::JuMP.Model)
     p_ref = filter(JuMP.is_parameter, JuMP.all_variables(model))
     y_ref = filter(

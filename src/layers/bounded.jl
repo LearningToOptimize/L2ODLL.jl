@@ -4,6 +4,12 @@ struct BoundDecomposition <: AbstractDecomposition
     zl_ref::Vector{JuMP.ConstraintRef}
     zu_ref::Vector{JuMP.ConstraintRef}
 end
+
+"""
+    BoundDecomposition(model::JuMP.Model)
+
+Create a decomposition using `z` for bound constraints and `y` for all other constraints.
+"""
 function BoundDecomposition(model::JuMP.Model)
     p_ref = filter(JuMP.is_parameter, JuMP.all_variables(model))
     x_ref = filter(!JuMP.is_parameter, JuMP.all_variables(model))

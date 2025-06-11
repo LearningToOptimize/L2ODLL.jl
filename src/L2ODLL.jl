@@ -40,6 +40,11 @@ const _DECOMPOSITIONS = [ # in order of preference for auto-detection
     GenericDecomposition
 ]
 
+"""
+    decompose!(model::JuMP.Model)
+
+Detect the best decomposition and build the DLL functions.
+"""
 function decompose!(model::JuMP.Model)
     for decomp in _DECOMPOSITIONS
         if can_decompose(model, decomp)
@@ -49,18 +54,34 @@ function decompose!(model::JuMP.Model)
     throw(DecompositionError("Could not detect decomposition that guarantees completion feasibility."))
 end
 
+"""
+    decompose!(model::JuMP.Model, decomposition::AbstractDecomposition)
+
+Build the DLL functions using the given decomposition.
+"""
 function decompose!(model::JuMP.Model, decomposition::AbstractDecomposition;
     optimizer=nothing, proj_fn=nothing, dll_layer_builder=nothing
 )
     return build_cache(model, decomposition; optimizer, proj_fn, dll_layer_builder)
 end
 
+"""
+    dual_objective(model::JuMP.Model, y_predicted, param_value)
+
+Evaluate the dual objective function (projection and completion).
+"""
 function dual_objective(model::JuMP.Model, y_predicted, param_value)
     cache = get_cache(model)
     @assert length.(y_predicted) == L2ODLL.y_shape(cache)
     return cache.dll_layer(y_predicted, param_value)
 end
 
+"""
+    dual_objective_gradient(model::JuMP.Model, y_predicted, param_value; ad_type::ADTypes.AbstractADType=DI.AutoForwardDiff())
+
+Evaluate the gradient of the dual objective function with respect to the predicted dual variables.
+    This includes both the projection and the completion steps.
+"""
 function dual_objective_gradient(model::JuMP.Model, y_predicted, param_value; ad_type::ADTypes.AbstractADType=DI.AutoForwardDiff())
     cache = get_cache(model)
     y_shape = L2ODLL.y_shape(cache)

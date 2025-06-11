@@ -3,6 +3,13 @@ struct GenericDecomposition <: AbstractDecomposition
     y_ref::Vector{JuMP.ConstraintRef}
     z_ref::Vector{JuMP.ConstraintRef}
 end
+
+"""
+    GenericDecomposition(model::JuMP.Model)
+
+Create a decomposition using `z` for Variable-in-Set constraints and `y` for all other constraints.
+    Note that `y` includes `Vector{VariableRef}` (i.e. conic) constraints.
+"""
 GenericDecomposition(model::JuMP.Model) = begin
     p_ref = filter(JuMP.is_parameter, JuMP.all_variables(model))
     y_ref = JuMP.all_constraints(model, include_variable_in_set_constraints=false)
@@ -10,6 +17,18 @@ GenericDecomposition(model::JuMP.Model) = begin
     z_ref = [cr for cr in all_cr if !(cr in y_ref) && !(typeof(cr.index).parameters[2] <: MOI.Parameter)]
     return GenericDecomposition(p_ref, y_ref, z_ref)
 end
+
+"""
+    GenericDecomposition(model::JuMP.Model, y_ref::Vector{JuMP.ConstraintRef})
+
+Create a decomposition using `z` for all constraints except `y_ref`.
+"""
+GenericDecomposition(model::JuMP.Model, y_ref::Vector{JuMP.ConstraintRef}) = begin
+    all_cr = JuMP.all_constraints(model, include_variable_in_set_constraints=true)
+    z_ref = [cr for cr in all_cr if !(cr in y_ref) && !(typeof(cr.index).parameters[2] <: MOI.Parameter)]
+    return GenericDecomposition(p_ref, y_ref, z_ref)
+end
+
 function can_decompose(model::JuMP.Model, ::Type{GenericDecomposition})
     y_ref = JuMP.all_constraints(model, include_variable_in_set_constraints=false)
     all_cr = JuMP.all_constraints(model, include_variable_in_set_constraints=true)
@@ -17,6 +36,12 @@ function can_decompose(model::JuMP.Model, ::Type{GenericDecomposition})
     return !isempty(z_ref) && !isempty(y_ref)
 end
 
+
+"""
+    jump_builder(decomposition::AbstractDecomposition, proj_fn::Function, dual_model::JuMP.Model, optimizer; silent=true)
+
+Build the completion function using JuMP to solve the model.
+"""
 function jump_builder(decomposition::AbstractDecomposition, proj_fn::Function, dual_model::JuMP.Model, optimizer; silent=true)
     completion_model, (p_ref, y_ref, ref_map) = make_completion_model(decomposition, dual_model)
     JuMP.set_optimizer(completion_model, optimizer)
