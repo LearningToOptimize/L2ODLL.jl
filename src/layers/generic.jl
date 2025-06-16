@@ -4,19 +4,6 @@ struct GenericDecomposition <: AbstractDecomposition
     z_ref::Vector{JuMP.ConstraintRef}
 end
 
-"""
-    GenericDecomposition(model::JuMP.Model)
-
-Create a decomposition using `z` for Variable-in-Set constraints and `y` for all other constraints.
-    Note that `y` includes `Vector{VariableRef}` (i.e. conic) constraints.
-"""
-GenericDecomposition(model::JuMP.Model) = begin
-    p_ref = filter(JuMP.is_parameter, JuMP.all_variables(model))
-    y_ref = JuMP.all_constraints(model, include_variable_in_set_constraints=false)
-    all_cr = JuMP.all_constraints(model, include_variable_in_set_constraints=true)
-    z_ref = [cr for cr in all_cr if !(cr in y_ref) && !(typeof(cr.index).parameters[2] <: MOI.Parameter)]
-    return GenericDecomposition(p_ref, y_ref, z_ref)
-end
 
 """
     GenericDecomposition(model::JuMP.Model, y_ref::Vector{JuMP.ConstraintRef})
@@ -29,11 +16,8 @@ GenericDecomposition(model::JuMP.Model, y_ref::Vector{JuMP.ConstraintRef}) = beg
     return GenericDecomposition(p_ref, y_ref, z_ref)
 end
 
-function can_decompose(model::JuMP.Model, ::Type{GenericDecomposition})
-    y_ref = JuMP.all_constraints(model, include_variable_in_set_constraints=false)
-    all_cr = JuMP.all_constraints(model, include_variable_in_set_constraints=true)
-    z_ref = [cr for cr in all_cr if !(cr in y_ref) && !(typeof(cr.index).parameters[2] <: MOI.Parameter)]
-    return !isempty(z_ref) && !isempty(y_ref)
+function can_decompose(::JuMP.Model, ::Type{GenericDecomposition})
+    return false  # GenericDecomposition needs a manual constructor
 end
 
 
@@ -84,13 +68,6 @@ function _make_completion_model(decomposition::AbstractDecomposition, dual_model
     JuMP.@constraint(completion_model, p_ref .∈ MOI.Parameter.(zeros(length(p_ref))))
     
     return completion_model, (p_ref, y_ref, ref_map)
-end
-
-function make_vector_data(decomposition::AbstractDecomposition, dual_model::JuMP.Model; M=SparseArrays.SparseMatrixCSC{Float64,Int}, V=Vector{Float64}, T=Float64)
-    completion_model, (p_ref, y_ref, ref_map) = make_completion_model(decomposition, dual_model)
-    y_sets = get_y_sets(dual_model, decomposition)
-    data = convert(VectorStandardFormData{M,V,T}, model_to_data(completion_model))
-    return data, y_sets, (p_ref, y_ref, ref_map)
 end
 
 function get_y_dual(dual_model, decomposition::AbstractDecomposition)

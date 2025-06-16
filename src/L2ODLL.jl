@@ -16,12 +16,7 @@ const DI = DifferentiationInterface
 const ADTypes = DI.ADTypes
 
 abstract type AbstractDecomposition end  # must have p_ref and y_ref and implement can_decompose
-struct DecompositionError <: Exception
-    message::String
-end
-function can_decompose(model::JuMP.Model, ::Type{T}) where T <: AbstractDecomposition end
 
-include("MOI_wrapper.jl")
 include("layers/generic.jl")
 include("layers/bounded.jl")
 include("layers/convex_qp.jl")
@@ -51,7 +46,7 @@ function decompose!(model::JuMP.Model)
             return decompose!(model, decomp(model))
         end
     end
-    throw(DecompositionError("Could not detect decomposition that guarantees completion feasibility."))
+    error("Could not detect decomposition that guarantees completion feasibility.")
 end
 
 """
@@ -94,6 +89,16 @@ function dual_objective_gradient(model::JuMP.Model, y_predicted, param_value; ad
     return L2ODLL.unflatten_y(dobj_wrt_y, y_shape)
 end
 
+"""
+    build_cache(model::JuMP.Model, decomposition::AbstractDecomposition;
+        optimizer=nothing, proj_fn=nothing, dll_layer_builder=nothing
+    )
+
+Build the DLLCache for the given model and decomposition.
+    In this lower-level function (compared to `decompose!`), users can set
+    custom projection functions via `proj_fn` and custom DLL layer builders
+    via `dll_layer_builder`.
+"""
 function build_cache(model::JuMP.Model, decomposition::AbstractDecomposition;
     optimizer=nothing, proj_fn=nothing, dll_layer_builder=nothing
 )
@@ -116,21 +121,25 @@ function build_cache(model::JuMP.Model, decomposition::AbstractDecomposition;
     return cache
 end
 
+"""
+    get_cache(model::JuMP.Model)
+
+Get the DLLCache for the model. Must have called `decompose!` first.
+"""
 function get_cache(model::JuMP.Model)
     if !haskey(model.ext, :_L2ODLL_cache)
-        throw(DecompositionError("No decomposition found. Please run L2ODLL.decompose! first."))
+        error("No decomposition found. Please run L2ODLL.decompose! first.")
     end
     return model.ext[:_L2ODLL_cache]
 end
 
+"""
+    make_completion_model(cache::DLLCache)
+
+    Create a JuMP model for the dual completion step.
+"""
 function make_completion_model(cache::DLLCache)
     return make_completion_model(cache.decomposition, cache.dual_model)
-end
-function make_vector_data(cache::DLLCache; M=SparseArrays.SparseMatrixCSC{Float64,Int}, V=Vector{Float64}, T=Float64)
-    completion_model, (p_ref, y_ref, ref_map) = make_completion_model(cache)
-    y_sets = get_y_sets(cache.dual_model, cache.decomposition)
-    completion_data = convert(VectorStandardFormData{M,V,T}, model_to_data(completion_model))
-    return completion_data, y_sets, (p_ref, y_ref, ref_map)
 end
 
 """

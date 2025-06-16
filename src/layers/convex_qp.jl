@@ -19,11 +19,13 @@ function ConvexQP(model::JuMP.Model)
     return ConvexQP(p_ref, y_ref, x_ref)
 end
 function can_decompose(model::JuMP.Model, ::Type{ConvexQP})
+    x_ref = JuMP.all_variables(model)
+    length(x_ref) > 0 || return false
     obj_func = JuMP.objective_function(model)
     if !(obj_func isa JuMP.QuadExpr)
         return false
     end
-    for x_i in filter(!JuMP.is_parameter, JuMP.all_variables(model))
+    for x_i in filter(!JuMP.is_parameter, x_ref)
         if !(JuMP.UnorderedPair(x_i, x_i) in keys(obj_func.terms))
             return false
         end
@@ -66,7 +68,7 @@ function convex_qp_builder(decomposition::ConvexQP, proj_fn, dual_model::JuMP.Mo
                 Qz[row_idx] = co.set.value - JuMP.value(vr -> (vr ∈ z_vars) ? 0 : vr, co.func)
             end
         else
-            throw(ArgumentError("Unsupported constraint set in convex_qp_builder: $S"))
+            error("Unsupported constraint set in convex_qp_builder: $S")
         end
     end
     @assert isempty(idx_left) "Some z were not found in the model"

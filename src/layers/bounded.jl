@@ -20,6 +20,7 @@ function BoundDecomposition(model::JuMP.Model)
 end
 function can_decompose(model::JuMP.Model, ::Type{BoundDecomposition})
     x_ref = filter(!JuMP.is_parameter, JuMP.all_variables(model))
+    length(x_ref) > 0 || return false
     if all(JuMP.has_lower_bound, x_ref) && all(JuMP.has_upper_bound, x_ref)
         return true
     end
@@ -58,7 +59,7 @@ function bounded_builder(decomposition::BoundDecomposition, proj_fn, dual_model:
                 delete!(idx_left, zl_idx)
             end
         else
-            throw(ArgumentError("Unsupported constraint set in bounded_lp_builder: $S"))
+            error("Unsupported constraint set in bounded_lp_builder: $S")
         end
     end
     @assert isempty(idx_left) "Some zl/zu were not found in the model"
@@ -72,7 +73,7 @@ function bounded_builder(decomposition::BoundDecomposition, proj_fn, dual_model:
         u = getfield.(getfield.(JuMP.constraint_object.(decomposition.zu_ref), :set), :upper)
         LogBoundedCompletion(μ, l, u)
     else
-        throw(ArgumentError("Invalid completion type: $completion. Must be :exact or :log."))
+        error("Invalid completion type: $completion. Must be :exact or :log.")
     end
 
     return (y_pred, param_value) -> begin
@@ -99,7 +100,7 @@ function _find_and_return_value(vr, var_lists, values)
         idx = findfirst(_vr -> _vr == vr, vars)
         !isnothing(idx) && return val[idx]
     end
-    throw(ArgumentError("Variable $vr not found in any variable list"))
+    error("Variable $vr not found in any variable list")
 end
 
 abstract type BoundedCompletion end
