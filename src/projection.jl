@@ -32,3 +32,33 @@ function get_y_sets(dual_model, decomposition)
         for set in get_y_constraint(dual_model, decomposition)
     ]
 end
+
+function make_jump_proj_fn(decomposition::AbstractDecomposition, dual_model::JuMP.Model, optimizer)
+    sets = get_y_sets(dual_model, decomposition)
+    shapes = y_shape(dual_model, decomposition)
+
+    proj_model = JuMP.Model(optimizer)
+
+    idxs = [(i, ji) for (i,j) in enumerate(shapes) for ji in 1:j]
+    JuMP.@variable(proj_model, y[idxs])
+
+    for (i, set) in enumerate(sets)
+        isnothing(set) && continue
+        y_vars = filter(ij->first(ij)==i, idxs)
+        if length(y_vars) == 1
+            JuMP.@constraint(proj_model, y[only(y_vars)] ∈ set)
+        else
+            JuMP.@constraint(proj_model, y[y_vars] ∈ set)
+        end
+    end
+
+    return (y_prediction) -> begin
+        JuMP.set_objective_function(proj_model, sum((y .- reduce(vcat, y_prediction)).^2))
+        # TODO: ensure reduce(vcat) and idxs are same order
+        JuMP.set_objective_sense(proj_model, MOI.MIN_SENSE)
+        JuMP.optimize!(proj_model)
+        return value.(y)
+    end
+end
+    
+    
