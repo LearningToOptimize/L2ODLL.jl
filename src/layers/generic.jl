@@ -60,12 +60,10 @@ function _make_completion_model(decomposition::AbstractDecomposition, dual_model
         filter_constraints=c -> !(c in y_cone_constraints)
     )
 
-    # mark y and p as parameters (optimizing over z only)
-    p_ref = getindex.(ref_map, get_p(dual_model, decomposition))
+    # mark y as parameters (optimizing over z only)
     y_ref = getindex.(ref_map, get_y_dual(dual_model, decomposition))
     y_ref_flat = reduce(vcat, y_ref)
     JuMP.@constraint(completion_model, y_ref_flat .∈ MOI.Parameter.(zeros(length(y_ref_flat))))
-    JuMP.@constraint(completion_model, p_ref .∈ MOI.Parameter.(zeros(length(p_ref))))
     
     return completion_model, (p_ref, y_ref, ref_map)
 end
