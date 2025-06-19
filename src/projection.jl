@@ -33,7 +33,7 @@ function get_y_sets(dual_model, decomposition)
     ]
 end
 
-function make_jump_proj_fn(decomposition::AbstractDecomposition, dual_model::JuMP.Model, optimizer)
+function make_jump_proj_fn(decomposition::AbstractDecomposition, dual_model::JuMP.Model, optimizer; silent=true)
     sets = get_y_sets(dual_model, decomposition)
     shapes = y_shape(dual_model, decomposition)
 
@@ -52,12 +52,21 @@ function make_jump_proj_fn(decomposition::AbstractDecomposition, dual_model::JuM
         end
     end
 
+    silent && JuMP.set_silent(proj_model)
+    proj_model.ext[:🔒] = ReentrantLock()
+    # TODO: define frule/rrule using Moreau
     return (y_prediction) -> begin
-        JuMP.set_objective_function(proj_model, sum((y .- reduce(vcat, y_prediction)).^2))
-        # TODO: ensure reduce(vcat) and idxs are same order
-        JuMP.set_objective_sense(proj_model, MOI.MIN_SENSE)
-        JuMP.optimize!(proj_model)
-        return value.(y)
+        lock(proj_model.ext[:🔒])
+        try
+            JuMP.set_objective_function(proj_model, sum((y .- reduce(vcat, y_prediction)).^2))
+            JuMP.set_objective_sense(proj_model, MOI.MIN_SENSE)
+            JuMP.optimize!(proj_model)
+            JuMP.assert_is_solved_and_feasible(proj_model)
+            
+            value.(y)
+        finally
+            unlock(proj_model.ext[:🔒])
+        end
     end
 end
     
