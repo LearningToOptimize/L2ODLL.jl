@@ -1,5 +1,6 @@
 module L2ODLL
 
+import Adapt
 import Dualization
 import JuMP
 import LinearAlgebra
@@ -17,6 +18,7 @@ const ADTypes = DI.ADTypes
 
 abstract type AbstractDecomposition end  # must have p_ref and y_ref and implement can_decompose
 
+include("batch.jl")
 include("layers/generic.jl")
 include("layers/bounded.jl")
 include("layers/convex_qp.jl")
