@@ -80,22 +80,22 @@ function bounded_builder(decomposition::BoundDecomposition, proj_fn, dual_model:
 
     z_fn = VecAffExprMatrix(
         zl_plus_zu,
-        [reduce(vcat, y_vars); p_vars];
+        [flatten_y(y_vars); p_vars];
         backend=backend
     )
     obj_fn = QuadExprMatrix(
         obj_func,
-        [reduce(vcat, y_vars); p_vars; zl_vars; zu_vars];
+        [flatten_y(y_vars); p_vars; zl_vars; zu_vars];
         backend=backend
     )
     return (y_pred, param_value) -> begin
         y_pred_proj = proj_fn(y_pred)
 
-        zl_plus_zu_val = z_fn([reduce(vcat, y_pred_proj); param_value])
+        zl_plus_zu_val = z_fn([flatten_y(y_pred_proj); param_value])
 
         zl, zu = complete_zlzu(completer, zl_plus_zu_val)
 
-        obj_fn([reduce(vcat, y_pred_proj); param_value; zl; zu])
+        obj_fn([flatten_y(y_pred_proj); param_value; zl; zu])
     end
 end
 

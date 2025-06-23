@@ -79,24 +79,24 @@ function convex_qp_builder(decomposition::ConvexQP, proj_fn, dual_model::JuMP.Mo
 
     Qz_fn = VecAffExprMatrix(
         Qz,
-        [reduce(vcat, y_vars); p_vars];
+        [flatten_y(y_vars); p_vars];
         backend=backend
     )
 
     obj_fn = QuadExprMatrix(
         JuMP.objective_function(dual_model),
-        [reduce(vcat, y_vars); p_vars; z_vars];
+        [flatten_y(y_vars); p_vars; z_vars];
         backend=backend
     )
 
     return (y_pred, param_value) -> begin
         y_pred_proj = proj_fn(y_pred)
 
-        Qz_val = Qz_fn([reduce(vcat, y_pred_proj); param_value])
+        Qz_val = Qz_fn([flatten_y(y_pred_proj); param_value])
 
         z = Qinv * Qz_val
 
-        obj_fn([reduce(vcat, y_pred_proj); param_value; z])
+        obj_fn([flatten_y(y_pred_proj); param_value; z])
     end
 end
 

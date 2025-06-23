@@ -194,7 +194,17 @@ end
 Unflatten a vector of flattened `y` variables into a vector of vectors, i.e. Vector{Float64} -> Vector{Vector{Float64}}.
 """
 function unflatten_y(y::AbstractVector, y_shape::AbstractVector{Int})
-    return [y[start_idx:start_idx + shape - 1] for (start_idx, shape) in enumerate(y_shape)]
+    result = Vector{eltype(y)}[]
+    start_idx = 1
+    for shape in y_shape
+        if shape == 0
+            push!(result, eltype(y)[])
+        else
+            push!(result, y[start_idx:start_idx + shape - 1])
+            start_idx += shape
+        end
+    end
+    return result
 end
 
 end  # module
