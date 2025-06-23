@@ -113,14 +113,15 @@ function complete_zlzu(::ExactBoundedCompletion, zl_plus_zu)
     return max.(zl_plus_zu, zero(eltype(zl_plus_zu))), -max.(-zl_plus_zu, zero(eltype(zl_plus_zu)))
 end
 
-struct LogBoundedCompletion{T<:Real} <: BoundedCompletion
+struct LogBoundedCompletion{V,T} <: BoundedCompletion
     μ::T
-    l::AbstractVector{T}
-    u::AbstractVector{T}
+    l::V
+    u::V
 end
-function complete_zlzu(c::LogBoundedCompletion, zl_plus_zu)
+Adapt.@adapt_structure LogBoundedCompletion
+function complete_zlzu(c::LogBoundedCompletion{V,T}, zl_plus_zu) where {V,T}
     v = c.μ ./ (c.u - c.l)
-    w = eltype(zl_plus_zu)(1//2) .* zl_plus_zu
+    w = T(1//2) .* zl_plus_zu
     sqrtv2w2 = hypot.(v, w)
     return (
         v + w + sqrtv2w2,

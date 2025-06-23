@@ -180,29 +180,25 @@ function y_shape(cache::DLLCache)
 end
 
 """
-    flatten_y(y::AbstractVector)
+    flatten_y(y)
 
 Flatten a vector of `y` variables into a single vector, i.e. Vector{Vector{Float64}} -> Vector{Float64}.
 """
-function flatten_y(y::AbstractVector)
+function flatten_y(y)
     return reduce(vcat, y)
 end
 
 """
-    unflatten_y(y::AbstractVector, y_shape::AbstractVector{Int})
+    unflatten_y(y::Vector{T}, y_shape::Vector{Int}) where T
 
 Unflatten a vector of flattened `y` variables into a vector of vectors, i.e. Vector{Float64} -> Vector{Vector{Float64}}.
 """
-function unflatten_y(y::AbstractVector, y_shape::AbstractVector{Int})
-    result = Vector{eltype(y)}[]
+function unflatten_y(y::Vector{T}, y_shape::Vector{Int}) where T
+    result = Vector{T}[]
     start_idx = 1
     for shape in y_shape
-        if shape == 0
-            push!(result, eltype(y)[])
-        else
-            push!(result, y[start_idx:start_idx + shape - 1])
-            start_idx += shape
-        end
+        push!(result, y[start_idx:start_idx + shape - 1])
+        start_idx += shape
     end
     return result
 end
