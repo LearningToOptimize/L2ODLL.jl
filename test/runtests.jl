@@ -49,6 +49,23 @@ SOLVER = () -> ParametricOptInterface.Optimizer(HiGHS.Optimizer());
         cqp_y_true = JuMP.dual.(L2ODLL.get_y(m))
         dobj1 = L2ODLL.dual_objective(m, cqp_y_true, param_value)
         @test isapprox(dobj1, JuMP.objective_value(m), atol=1e-6)
+
+        batch_size = 3
+        param_values = [[0.1], [0.2], [0.3]]
+        y_predicted_batch = [randn_like(L2ODLL.get_y_dual(m)) for _ in 1:batch_size]
+
+        dobj_batch = L2ODLL.dual_objective.(m, y_predicted_batch, param_values)
+        dobj_grad_batch = L2ODLL.dual_objective_gradient.(m, y_predicted_batch, param_values)
+        
+        @test length(dobj_batch) == batch_size
+        @test length(dobj_grad_batch) == batch_size
+        
+        for i in 1:batch_size
+            individual_dobj = L2ODLL.dual_objective(m, y_predicted_batch[i], param_values[i])
+            individual_dobj_grad = L2ODLL.dual_objective_gradient(m, y_predicted_batch[i], param_values[i])
+            @test dobj_batch[i] ≈ individual_dobj atol=1e-6
+            @test all(isapprox.(dobj_grad_batch[i], individual_dobj_grad, atol=1e-10))
+        end
     end
 
     @testset "Markowitz SecondOrderCone (BoundDecomposition)" begin
@@ -98,5 +115,22 @@ SOLVER = () -> ParametricOptInterface.Optimizer(HiGHS.Optimizer());
 
         dobj1 = L2ODLL.dual_objective(m, blp_y_true, param_value)
         @test isapprox(dobj1, JuMP.objective_value(m), atol=1e-6)
+
+        batch_size = 3
+        param_values = [[randn(N); rand()] for _ in 1:batch_size]
+        y_predicted_batch = [randn_like(L2ODLL.get_y_dual(m)) for _ in 1:batch_size]
+
+        dobj_batch = L2ODLL.dual_objective.(m, y_predicted_batch, param_values)
+        dobj_grad_batch = L2ODLL.dual_objective_gradient.(m, y_predicted_batch, param_values)
+        
+        @test length(dobj_batch) == batch_size
+        @test length(dobj_grad_batch) == batch_size
+        
+        for i in 1:batch_size
+            individual_dobj = L2ODLL.dual_objective(m, y_predicted_batch[i], param_values[i])
+            individual_dobj_grad = L2ODLL.dual_objective_gradient(m, y_predicted_batch[i], param_values[i])
+            @test dobj_batch[i] ≈ individual_dobj atol=1e-6
+            @test all(isapprox.(dobj_grad_batch[i], individual_dobj_grad, atol=1e-10))
+        end
     end
 end
