@@ -33,7 +33,9 @@ function can_decompose(model::JuMP.Model, ::Type{ConvexQP})
     return true
 end
 
-function convex_qp_builder(decomposition::ConvexQP, proj_fn, dual_model::JuMP.Model)
+function convex_qp_builder(decomposition::ConvexQP, proj_fn, dual_model::JuMP.Model;
+    backend=nothing
+    )
     p_vars = get_p(dual_model, decomposition)
     y_vars = get_y_dual(dual_model, decomposition)
     x_vars = get_x(decomposition)
@@ -73,25 +75,28 @@ function convex_qp_builder(decomposition::ConvexQP, proj_fn, dual_model::JuMP.Mo
     end
     @assert isempty(idx_left) "Some z were not found in the model"
 
-    obj_func = JuMP.objective_function(dual_model)
-
     Qinv = inv(Q)
+
+    Qz_fn = VecAffExprMatrix(
+        Qz,
+        [reduce(vcat, y_vars); p_vars];
+        backend=backend
+    )
+
+    obj_fn = QuadExprMatrix(
+        JuMP.objective_function(dual_model),
+        [reduce(vcat, y_vars); p_vars; z_vars];
+        backend=backend
+    )
+
     return (y_pred, param_value) -> begin
         y_pred_proj = proj_fn(y_pred)
 
-        Qz_val = JuMP.value.(vr -> _find_and_return_value(vr,
-            [reduce(vcat, y_vars), p_vars],
-            [reduce(vcat, y_pred_proj), param_value]),
-            Qz
-        )
+        Qz_val = Qz_fn([reduce(vcat, y_pred_proj); param_value])
 
         z = Qinv * Qz_val
 
-        JuMP.value.(vr -> _find_and_return_value(vr,
-            [reduce(vcat, y_vars), p_vars, z_vars],
-            [reduce(vcat, y_pred_proj), param_value, z]),
-            obj_func
-        )
+        obj_fn([reduce(vcat, y_pred_proj); param_value; z])
     end
 end
 
