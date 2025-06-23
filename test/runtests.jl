@@ -10,7 +10,7 @@ randn_like(vecofvecs) = [randn(length(v)) for v in vecofvecs];
 SOLVER = () -> ParametricOptInterface.Optimizer(HiGHS.Optimizer());
 
 @testset "L2ODLL.jl" begin
-    @testset "Markowitz Frontier" begin
+    @testset "Markowitz Frontier (ConvexQP)" begin
         μ = [11.5; 9.5; 6] / 100
         Σ = [
             166 34 58
@@ -51,7 +51,7 @@ SOLVER = () -> ParametricOptInterface.Optimizer(HiGHS.Optimizer());
         @test isapprox(dobj1, JuMP.objective_value(m), atol=1e-6)
     end
 
-    @testset "Markowitz SecondOrderCone" begin
+    @testset "Markowitz SecondOrderCone (BoundDecomposition)" begin
         Σ = [
             166 34 58
             34 64 4
