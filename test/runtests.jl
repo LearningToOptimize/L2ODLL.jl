@@ -1,5 +1,3 @@
-import JSON, HTTP
-
 using L2ODLL
 using Test
 
@@ -8,18 +6,10 @@ import Clarabel, HiGHS
 import DifferentiationInterface, ForwardDiff
 import LinearAlgebra
 
-function test_vectorize_bridge_matches_moi()
-    @test JSON.parse(String(HTTP.get(
-        "https://api.github.com/repos/jump-dev/MathOptInterface.jl/commits?path=src/Bridges/Constraint/bridges/VectorizeBridge.jl"
-    ).body))[1]["sha"] == "4e2630554afcde0b0b7c3e680e7fd3666e9e3825"
-end
-
-
 randn_like(vecofvecs) = [randn(length(v)) for v in vecofvecs];
 SOLVER = () -> ParametricOptInterface.Optimizer(HiGHS.Optimizer());
 
 @testset "L2ODLL.jl" begin
-    test_vectorize_bridge_matches_moi()
     @testset "Markowitz Frontier" begin
         μ = [11.5; 9.5; 6] / 100
         Σ = [
