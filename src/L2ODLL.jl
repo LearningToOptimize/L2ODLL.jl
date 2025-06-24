@@ -178,6 +178,9 @@ end
 function y_shape(cache::DLLCache)
     return length.(get_y_dual(cache.dual_model, cache.decomposition))
 end
+function y_shape(dual_model::JuMP.Model, decomposition::AbstractDecomposition)
+    return length.(get_y_dual(dual_model, decomposition))
+end
 
 """
     flatten_y(y)
