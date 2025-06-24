@@ -9,9 +9,9 @@ struct QuadExprMatrix{M,V,T} <: AbstractExprMatrix
     c::V
     c0::T
 end
-struct VecAffExprMatrix{V,T} <: AbstractExprMatrix
-    A::V
-    b::T
+struct VecAffExprMatrix{M,V} <: AbstractExprMatrix
+    A::M
+    b::V
 end
 
 
