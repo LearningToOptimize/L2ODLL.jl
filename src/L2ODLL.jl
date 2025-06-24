@@ -1,5 +1,6 @@
 module L2ODLL
 
+import Adapt
 import Dualization
 import JuMP
 import LinearAlgebra
@@ -17,6 +18,7 @@ const ADTypes = DI.ADTypes
 
 abstract type AbstractDecomposition end  # must have p_ref and y_ref and implement can_decompose
 
+include("batch.jl")
 include("layers/generic.jl")
 include("layers/bounded.jl")
 include("layers/convex_qp.jl")
@@ -178,21 +180,27 @@ function y_shape(cache::DLLCache)
 end
 
 """
-    flatten_y(y::AbstractVector)
+    flatten_y(y)
 
 Flatten a vector of `y` variables into a single vector, i.e. Vector{Vector{Float64}} -> Vector{Float64}.
 """
-function flatten_y(y::AbstractVector)
+function flatten_y(y)
     return reduce(vcat, y)
 end
 
 """
-    unflatten_y(y::AbstractVector, y_shape::AbstractVector{Int})
+    unflatten_y(y::Vector{T}, y_shape::Vector{Int}) where T
 
 Unflatten a vector of flattened `y` variables into a vector of vectors, i.e. Vector{Float64} -> Vector{Vector{Float64}}.
 """
-function unflatten_y(y::AbstractVector, y_shape::AbstractVector{Int})
-    return [y[start_idx:start_idx + shape - 1] for (start_idx, shape) in enumerate(y_shape)]
+function unflatten_y(y::Vector{T}, y_shape::Vector{Int}) where T
+    result = Vector{T}[]
+    start_idx = 1
+    for shape in y_shape
+        push!(result, y[start_idx:start_idx + shape - 1])
+        start_idx += shape
+    end
+    return result
 end
 
 end  # module

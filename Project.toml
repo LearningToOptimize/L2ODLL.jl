@@ -4,6 +4,7 @@ authors = ["Klamkin", "Michael <michael@klamkin.com> and contributors"]
 version = "1.0.0-DEV"
 
 [deps]
+Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
 DifferentiationInterface = "a0c0ee7d-e4b9-4e03-894e-1c5f64a51d63"
 Dualization = "191a621a-6537-11e9-281d-650236a99e60"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
@@ -14,6 +15,7 @@ MathOptSetDistances = "3b969827-a86c-476c-9527-bb6f1a8fbad5"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 
 [compat]
+Adapt = "4.3.0"
 Dualization = "=0.7.0"
 MathOptSetDistances = "=0.2.11"
 

@@ -27,7 +27,9 @@ function can_decompose(model::JuMP.Model, ::Type{BoundDecomposition})
     return false
 end
 
-function bounded_builder(decomposition::BoundDecomposition, proj_fn, dual_model::JuMP.Model; completion=:exact, μ=1.0)
+function bounded_builder(decomposition::BoundDecomposition, proj_fn, dual_model::JuMP.Model;
+    completion=:exact, μ=1.0, backend=nothing
+    )
     p_vars = get_p(dual_model, decomposition)
     y_vars = get_y_dual(dual_model, decomposition)
     zl_vars = only.(get_zl(dual_model, decomposition))
@@ -76,22 +78,24 @@ function bounded_builder(decomposition::BoundDecomposition, proj_fn, dual_model:
         error("Invalid completion type: $completion. Must be :exact or :log.")
     end
 
+    z_fn = VecAffExprMatrix(
+        zl_plus_zu,
+        [flatten_y(y_vars); p_vars];
+        backend=backend
+    )
+    obj_fn = QuadExprMatrix(
+        obj_func,
+        [flatten_y(y_vars); p_vars; zl_vars; zu_vars];
+        backend=backend
+    )
     return (y_pred, param_value) -> begin
         y_pred_proj = proj_fn(y_pred)
 
-        zl_plus_zu_val = JuMP.value.(vr -> _find_and_return_value(vr,
-            [reduce(vcat, y_vars), p_vars],
-            [reduce(vcat, y_pred_proj), param_value]),
-            zl_plus_zu
-        )
+        zl_plus_zu_val = z_fn([flatten_y(y_pred_proj); param_value])
 
         zl, zu = complete_zlzu(completer, zl_plus_zu_val)
 
-        JuMP.value.(vr -> _find_and_return_value(vr, 
-            [reduce(vcat, y_vars), p_vars, zl_vars, zu_vars],
-            [reduce(vcat, y_pred_proj), param_value, zl, zu]), 
-            obj_func
-        )
+        obj_fn([flatten_y(y_pred_proj); param_value; zl; zu])
     end
 end
 
@@ -109,14 +113,15 @@ function complete_zlzu(::ExactBoundedCompletion, zl_plus_zu)
     return max.(zl_plus_zu, zero(eltype(zl_plus_zu))), -max.(-zl_plus_zu, zero(eltype(zl_plus_zu)))
 end
 
-struct LogBoundedCompletion{T<:Real} <: BoundedCompletion
+struct LogBoundedCompletion{V,T} <: BoundedCompletion
     μ::T
-    l::AbstractVector{T}
-    u::AbstractVector{T}
+    l::V
+    u::V
 end
-function complete_zlzu(c::LogBoundedCompletion, zl_plus_zu)
+Adapt.@adapt_structure LogBoundedCompletion
+function complete_zlzu(c::LogBoundedCompletion{V,T}, zl_plus_zu) where {V,T}
     v = c.μ ./ (c.u - c.l)
-    w = eltype(zl_plus_zu)(1//2) .* zl_plus_zu
+    w = T(1//2) .* zl_plus_zu
     sqrtv2w2 = hypot.(v, w)
     return (
         v + w + sqrtv2w2,
