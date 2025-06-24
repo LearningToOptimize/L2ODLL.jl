@@ -58,7 +58,7 @@ function make_jump_proj_fn(decomposition::AbstractDecomposition, dual_model::JuM
     return (y_prediction) -> begin
         lock(proj_model.ext[:🔒])
         try
-            JuMP.set_objective_function(proj_model, sum((y .- reduce(vcat, y_prediction)).^2))
+            JuMP.set_objective_function(proj_model, sum((y .- flatten_y(y_prediction)).^2))
             JuMP.set_objective_sense(proj_model, MOI.MIN_SENSE)
             JuMP.optimize!(proj_model)
             JuMP.assert_is_solved_and_feasible(proj_model)
