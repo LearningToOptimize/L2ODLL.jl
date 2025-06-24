@@ -37,7 +37,7 @@ function jump_builder(decomposition::AbstractDecomposition, proj_fn::Function, d
         lock(completion_model.ext[:🔒])
         try
             JuMP.set_parameter_value.(p_ref, param_value)
-            JuMP.set_parameter_value.(reduce(vcat, y_ref), reduce(vcat, proj_fn(y_pred)))
+            JuMP.set_parameter_value.(flatten_y(y_ref), flatten_y(proj_fn(y_pred)))
 
             JuMP.optimize!(completion_model)
             JuMP.assert_is_solved_and_feasible(completion_model)
@@ -63,7 +63,7 @@ function _make_completion_model(decomposition::AbstractDecomposition, dual_model
     # mark y as parameters (optimizing over z only)
     p_ref = getindex.(ref_map, get_p(dual_model, decomposition))
     y_ref = getindex.(ref_map, get_y_dual(dual_model, decomposition))
-    y_ref_flat = reduce(vcat, y_ref)
+    y_ref_flat = flatten_y(y_ref)
     JuMP.@constraint(completion_model, y_ref_flat .∈ MOI.Parameter.(zeros(length(y_ref_flat))))
     
     return completion_model, (p_ref, y_ref, ref_map)

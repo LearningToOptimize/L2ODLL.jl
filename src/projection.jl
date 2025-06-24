@@ -69,5 +69,3 @@ function make_jump_proj_fn(decomposition::AbstractDecomposition, dual_model::JuM
         end
     end
 end
-    
-    
