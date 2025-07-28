@@ -16,7 +16,7 @@ SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 
 [compat]
 Adapt = "4.3.0"
-Dualization = "=0.7.0"
+Dualization = "0.7"
 MathOptSetDistances = "=0.2.11"
 
 [extras]
