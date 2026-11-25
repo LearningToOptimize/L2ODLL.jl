@@ -1,7 +1,7 @@
 name = "L2ODLL"
 uuid = "22d6521a-7418-44fc-ab17-e132515cbf79"
 authors = ["Klamkin", "Michael <michael@klamkin.com> and contributors"]
-version = "1.0.0-DEV"
+version = "0.1.0-DEV"
 
 [deps]
 Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
@@ -40,7 +40,7 @@ JuMP = "1.15"
 L2OCore = "0.1"
 LinearAlgebra = "1"
 MathOptInterface = "1.20"
-MathOptSetDistances = "=0.2.11"
+MathOptSetDistances = "0.2.11"
 ParametricOptInterface = "0.8 - 0.15"
 Random = "1"
 SparseArrays = "1"
