@@ -6,14 +6,15 @@ end
 
 
 """
-    GenericDecomposition(model::JuMP.Model, y_ref::Vector{JuMP.ConstraintRef})
+    GenericDecomposition(model::JuMP.Model, y_ref::AbstractVector{<:JuMP.ConstraintRef})
 
 Create a decomposition using `z` for all constraints except `y_ref`.
 """
-GenericDecomposition(model::JuMP.Model, y_ref::Vector{JuMP.ConstraintRef}) = begin
+GenericDecomposition(model::JuMP.Model, y_ref::AbstractVector{<:JuMP.ConstraintRef}) = begin
+    p_ref = filter(JuMP.is_parameter, JuMP.all_variables(model))
     all_cr = JuMP.all_constraints(model, include_variable_in_set_constraints=true)
-    z_ref = [cr for cr in all_cr if !(cr in y_ref) && !(typeof(cr.index).parameters[2] <: MOI.Parameter)]
-    return GenericDecomposition(p_ref, y_ref, z_ref)
+    z_ref = JuMP.ConstraintRef[cr for cr in all_cr if !(cr in y_ref) && !(typeof(cr.index).parameters[2] <: MOI.Parameter)]
+    return GenericDecomposition(p_ref, convert(Vector{JuMP.ConstraintRef}, y_ref), z_ref)
 end
 
 function can_decompose(::JuMP.Model, ::Type{GenericDecomposition})
