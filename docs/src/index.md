@@ -1,78 +1,53 @@
 # L2ODLL.jl
 
-!!! warning
-    This documentation is a work in progress.
-    Please open an issue if content is missing / erroneous.
+L2ODLL.jl implements **Dual Lagrangian Learning** (DLL) of
+[Tanneau and Van Hentenryck (2024)](https://arxiv.org/abs/2402.03086) for parametric
+conic and convex quadratic problems modeled in [JuMP](https://jump.dev), with the
+bounded-variable completions of
+[Klamkin, Tanneau and Van Hentenryck](https://arxiv.org/abs/2402.02596).
 
-L2ODLL.jl implements the Dual Lagrangian Learning (DLL) method of [Tanneau and Hentenryck (2024)](https://arxiv.org/pdf/2402.03086) using JuMP.
+A neural network (or any proxy) predicts some of the dual variables ``\hat y`` of a
+primal problem from its parameters ``p``. L2ODLL projects the prediction onto the
+dual cone and **completes** the remaining dual variables so that the result is dual
+feasible. Its dual objective is therefore a **valid bound** on the optimal value for
+*every* prediction (weak duality), and it is differentiable in ``\hat y``, so it is
+also the self-supervised training loss: maximizing it needs no optimal solutions.
+
+```mermaid
+flowchart LR
+    p["parameters p"] --> f["proxy f(p)"]
+    f -->|"ŷ"| proj["Π onto dual cone"]
+    proj -->|"y"| comp["dual completion z(y, p)"]
+    comp --> bound["Φ(y, p) ≤ OPT(p)"]
+    bound -.->|"∇ŷ Φ (training)"| f
+```
+
+L2ODLL takes the *primal* JuMP model, dualizes it with Dualization.jl, detects a
+decomposition with a closed-form completion and builds the projection, completion,
+bound and gradient functions automatically.
 
 ## Installation
 
 ```julia
 import Pkg
-Pkg.add(; url="https://github.com/LearningToOptimize/L2ODLL.jl")
+Pkg.add(; url = "https://github.com/LearningToOptimize/L2ODLL.jl")
 ```
 
-## Usage
+## Where to go next
 
+- [Theory](theory.md): the optimization problems, assumptions and guarantees, with
+  equation numbers of the papers and the name of the test that checks each claim.
+- [Package guide](guide/concepts.md): getting started, concepts, custom
+  decompositions, projections and layers.
+- [L2OCore interface](guide/l2ocore.md): using L2ODLL as a method of the
+  LearningToOptimize pipeline; AD and GPU notes.
+- Examples: [Markowitz portfolio](examples/markowitz.md),
+  [economic dispatch](examples/economic_dispatch.md) (training a proxy).
 
-This package simplifies the implementation of DLL by taking as input a primal JuMP model, then automatically generating the dual projection and completion functions which can be used in the training and inference of DLL models. The basic usage is as follows:
+## The LearningToOptimize ecosystem
 
-
-#### Define your (primal) model using JuMP
-
-For the purposes of this example, we'll use a portfolio optimization problem.
-```julia
-using JuMP, LinearAlgebra
-
-model = Model()
-
-# define constant problem data
-Σ = [166 34 58; 34 64 4; 58 4 100] / 100^2
-N = size(Σ, 1)
-
-# define variables
-@variable(model, x[1:N])
-set_lower_bound.(x, 0)  # we explicitly set upper and lower bounds
-set_upper_bound.(x, 1)  #   in order to use the BoundDecomposition
-
-# define parameteric problem data
-μ0 = randn(N)
-γ0 = rand()
-@variable(model, μ[1:N] in MOI.Parameter.(μ0))
-@variable(model, γ in MOI.Parameter(γ0))
-
-# define constraints
-@constraint(model, simplex, sum(x) == 1)
-@constraint(model, risk, [γ; cholesky(Σ).L * x] in SecondOrderCone())
-
-# define objective
-@objective(model, Max, dot(μ,x))
-```
-
-#### Decompose and build the functions
-
-Since all the variables have finite bounds, L2ODLL will automatically pick the `BoundDecomposition`.
-```julia
-using L2ODLL
-
-L2ODLL.decompose!(model)
-```
-
-Now, L2ODLL has automatically generated the dual projection and completion layer. To compute the dual objective value and gradient with respect to the prediction, use:
-```julia
-param_value = ... # some values for μ and γ
-y_predicted = nn(param_value) # e.g. neural network inference
-
-dobj = L2ODLL.dual_objective(model, y_predicted, param_value)
-dobj_wrt_y = L2ODLL.dual_objective_gradient(model, y_predicted, param_value)
-```
-
-This also works with batches, using broadcasting:
-```julia
-dobj = L2ODLL.dual_objective.(model, y_predicted_batch, param_value_batch)
-dobj_wrt_y = L2ODLL.dual_objective_gradient.(model, y_predicted_batch, param_value_batch)
-```
-
-!!! warning
-    These functions currently run on the CPU. A batched GPU-friendly version is coming soon.
+| package | role |
+|:--|:--|
+| [LearningToOptimize.jl](https://github.com/LearningToOptimize/LearningToOptimize.jl) | shared interface (`L2OCore`), data generation, basic methods |
+| **L2ODLL.jl** | dual methods: valid dual bounds by completion |
+| [DecisionRules.jl](https://github.com/LearningToOptimize/DecisionRules.jl) | decision rules for multistage stochastic optimization |

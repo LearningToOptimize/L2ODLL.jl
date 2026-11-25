@@ -33,6 +33,13 @@ function get_y_sets(dual_model, decomposition)
     ]
 end
 
+"""
+    make_jump_proj_fn(decomposition::AbstractDecomposition, dual_model::JuMP.Model, optimizer; silent=true)
+
+Like [`make_proj_fn`](@ref), but computes the Euclidean projection onto the dual
+cones by solving `min ‖y - ŷ‖²` with `optimizer` (for cones without a closed-form
+projection). Not differentiable with automatic differentiation.
+"""
 function make_jump_proj_fn(decomposition::AbstractDecomposition, dual_model::JuMP.Model, optimizer; silent=true)
     sets = get_y_sets(dual_model, decomposition)
     shapes = y_shape(dual_model, decomposition)

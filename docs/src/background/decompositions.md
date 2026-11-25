@@ -51,13 +51,13 @@ Then, the completion model is:
 \begin{aligned}
 & \max\nolimits_{z} & - h^\top z - b^\top y
 \\
-& \;\;\text{s.t.} & H z = c - A^\top y
+& \;\;\text{s.t.} & H^\top z = c - A^\top y
 \\
 & & z \in \mathcal{K}^*
 \end{aligned}
 \quad\quad\quad\quad
 \begin{aligned}
-& \min\nolimits_{x} & (c-A^\top y)^\top x
+& \min\nolimits_{x} & (c-A^\top y)^\top x - b^\top y
 \\
 & \;\;\phantom{\text{s.t.}} & Hx + h \in \mathcal{K}
 \\
@@ -84,7 +84,7 @@ When all primal variables have finite upper and lower bounds, a natural way to d
 \end{aligned}
 \quad\quad\quad\quad
 \begin{aligned}
-& \max\nolimits_{y,z_l,z_u} & - b^\top y - l^\top z_l - u^\top z_u
+& \max\nolimits_{y,z_l,z_u} & - b^\top y + l^\top z_l + u^\top z_u
 \\
 & \;\;\text{s.t.} & A^\top y + z_l + z_u = c
 \\
@@ -98,7 +98,7 @@ Then, the completion model is:
 ```math
 \begin{equation}
 \begin{aligned}
-& \max\nolimits_{z_l,z_u} & - l^\top z_l - u^\top z_u - b^\top y
+& \max\nolimits_{z_l,z_u} & + l^\top z_l + u^\top z_u - b^\top y
 \\
 & \;\;\text{s.t.} & z_l + z_u = c - A^\top y
 \\
@@ -106,7 +106,7 @@ Then, the completion model is:
 \end{aligned}
 \quad\quad\quad\quad
 \begin{aligned}
-& \min\nolimits_{x} & (c-A^\top y)^\top x
+& \min\nolimits_{x} & (c-A^\top y)^\top x - b^\top y
 \\
 & & l \leq x \leq u
 \end{aligned}
@@ -153,7 +153,7 @@ Then, the completion model is:
 \end{aligned}
 \quad\quad\quad\quad
 \begin{aligned}
-& \min\nolimits_{x} & x^\top Q x + (c-A^\top y)^\top x
+& \min\nolimits_{x} & x^\top Q x + (c-A^\top y)^\top x - b^\top y
 \\
 & & x \in \mathbb{R}^n
 \end{aligned}
