@@ -21,15 +21,30 @@ end
 function can_decompose(model::JuMP.Model, ::Type{BoundDecomposition})
     x_ref = filter(!JuMP.is_parameter, JuMP.all_variables(model))
     length(x_ref) > 0 || return false
+    # The closed-form bounded completion is implemented for affine objectives
+    # (in the decision variables) only; quadratic objectives go to `ConvexQP`.
+    _has_quadratic_decision_terms(JuMP.objective_function(model)) && return false
     if all(JuMP.has_lower_bound, x_ref) && all(JuMP.has_upper_bound, x_ref)
         return true
     end
     return false
 end
 
+_has_quadratic_decision_terms(::Any) = false
+function _has_quadratic_decision_terms(f::JuMP.GenericQuadExpr)
+    return any(((_, a, b),) -> !JuMP.is_parameter(a) && !JuMP.is_parameter(b), JuMP.quad_terms(f))
+end
+
 function bounded_builder(decomposition::BoundDecomposition, proj_fn, dual_model::JuMP.Model;
     completion=:exact, μ=1.0, backend=nothing
     )
+    if !isempty(dual_model.ext[:_Dualization_jl_PrimalDualMap].primal_var_in_quad_obj_to_dual_slack_var)
+        error(
+            "The closed-form BoundDecomposition layer requires an objective that is affine " *
+            "in the decision variables. For convex quadratic objectives use `ConvexQP`, or a " *
+            "`GenericDecomposition` with an optimizer (see the decomposition detection docs)."
+        )
+    end
     p_vars = get_p(dual_model, decomposition)
     y_vars = get_y_dual(dual_model, decomposition)
     zl_vars = only.(get_zl(dual_model, decomposition))
