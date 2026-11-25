@@ -14,7 +14,6 @@ const MOIB = JuMP.MOIB
 const MOIU = JuMP.MOIU
 const MOSD = MathOptSetDistances
 const DI = DifferentiationInterface
-const ADTypes = DI.ADTypes
 
 abstract type AbstractDecomposition end  # must have p_ref and y_ref and implement can_decompose
 
@@ -106,12 +105,12 @@ function dual_objective(model::JuMP.Model, y_predicted, param_value)
 end
 
 """
-    dual_objective_gradient(model::JuMP.Model, y_predicted, param_value; ad_type::ADTypes.AbstractADType=DI.AutoForwardDiff())
+    dual_objective_gradient(model::JuMP.Model, y_predicted, param_value; ad_type::DI.AbstractADType=DI.AutoForwardDiff())
 
 Evaluate the gradient of the dual objective function with respect to the predicted dual variables.
     This includes both the projection and the completion steps.
 """
-function dual_objective_gradient(model::JuMP.Model, y_predicted, param_value; ad_type::ADTypes.AbstractADType=DI.AutoForwardDiff())
+function dual_objective_gradient(model::JuMP.Model, y_predicted, param_value; ad_type::DI.AbstractADType=DI.AutoForwardDiff())
     cache = get_cache(model)
     y_shape = L2ODLL.y_shape(cache)
     @assert length.(y_predicted) == y_shape
@@ -129,7 +128,7 @@ end
 Return `(dual_objective(model, y_predicted, param_value), dual_objective_gradient(model, y_predicted, param_value))`
 computed in one differentiation pass.
 """
-function dual_objective_and_gradient(model::JuMP.Model, y_predicted, param_value; ad_type::ADTypes.AbstractADType=DI.AutoForwardDiff())
+function dual_objective_and_gradient(model::JuMP.Model, y_predicted, param_value; ad_type::DI.AbstractADType=DI.AutoForwardDiff())
     cache = get_cache(model)
     y_shape = L2ODLL.y_shape(cache)
     @assert length.(y_predicted) == y_shape
@@ -172,7 +171,7 @@ end
 Batched [`dual_objective_gradient`](@ref): column `k` of the result is the
 flattened gradient for column `k` of `Y`.
 """
-function dual_objective_gradient(model::JuMP.Model, Y::AbstractMatrix, P::AbstractMatrix; ad_type::ADTypes.AbstractADType=DI.AutoForwardDiff())
+function dual_objective_gradient(model::JuMP.Model, Y::AbstractMatrix, P::AbstractMatrix; ad_type::DI.AbstractADType=DI.AutoForwardDiff())
     return last(dual_objective_and_gradient(model, Y, P; ad_type))
 end
 
@@ -181,7 +180,7 @@ end
 
 Batched [`dual_objective_and_gradient`](@ref).
 """
-function dual_objective_and_gradient(model::JuMP.Model, Y::AbstractMatrix, P::AbstractMatrix; ad_type::ADTypes.AbstractADType=DI.AutoForwardDiff())
+function dual_objective_and_gradient(model::JuMP.Model, Y::AbstractMatrix, P::AbstractMatrix; ad_type::DI.AbstractADType=DI.AutoForwardDiff())
     shape = _check_batch(model, Y, P)
     T = float(eltype(Y))
     vals = Vector{T}(undef, size(Y, 2))
