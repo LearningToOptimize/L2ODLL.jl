@@ -31,7 +31,7 @@ function bounded_lp(rng; n = 5, m = 3, sense = MOI.MIN_SENSE, equality = true)
     obj = sum((c[j] + sum(C[j, i] * p[i] for i in 1:m)) * x[j] for j in 1:n)
     JuMP.@objective(model, sense, obj)
     sampler = rng -> 0.2 .* (2 .* rand(rng, m) .- 1)
-    data = (; A, b, c, C, l = fill(-2.0, n), u = fill(2.0, n))
+    data = (; A, b, c, C, E, e, l = fill(-2.0, n), u = fill(2.0, n))
     return model, sampler, data
 end
 
@@ -94,7 +94,7 @@ function convex_qp(rng; n = 4, m = 2, sense = MOI.MIN_SENSE, bounds = :lower)
         JuMP.@objective(model, Max, -quad - lin)
     end
     sampler = rng -> 0.2 .* (2 .* rand(rng, m) .- 1)
-    return model, sampler, (; Q, A, b, c, C)
+    return model, sampler, (; Q, A, b, c, C, E, e)
 end
 
 const INSTANCE_CLASSES = [

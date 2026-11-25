@@ -156,17 +156,20 @@ evaluated at (5) is valid, and it tends to (4) as ``\mu \to 0``; it is smooth in
 
 **Strictly convex quadratic objective (DLL Example 3, eqs. 21–23; [`ConvexQP`](@ref)).**
 For ``\min \tfrac12 x^\top Q x + c(p)^\top x`` with ``Q \succ 0`` the dual has a free
-block ``w`` with stationarity ``A^\top y + Q w = c(p)``. Predicting all constraint
+block ``w`` with stationarity ``A^\top y - Q w = c(p)`` (the sign convention of
+Dualization.jl). Predicting all constraint
 duals and completing ``w``,
 
 ```math
-w = Q^{-1}\big(c(p) - A^\top \bar y\big), \qquad
+w = Q^{-1}\big(A^\top \bar y - c(p)\big), \qquad
 \Phi(\bar y, p) = -b(p)^\top \bar y - \tfrac12 w^\top Q w .
 \tag{6}
 ```
 
-(The code reads ``Q`` from the JuMP objective as written by Dualization.jl, so the
-``\tfrac12`` convention of the model does not matter.)
+``w`` is the minimizer of the Lagrangian, ``x(\bar y)``; at an optimal ``y^\star`` it is
+the (unique) primal optimum. (The code reads the coefficient matrix of ``w`` from the
+dual written by Dualization.jl, so the ``\tfrac12`` convention of the model does not
+matter.)
 
 ## Projection
 
@@ -194,8 +197,8 @@ In the convention of the papers (``Ax \ge b``) this reads ``b - A\hat x``. The s
 argument (partial Lagrangian of (3)) gives ``-b(p) - A\hat x`` for the generic
 completion, with ``\hat x`` the dual of the equality constraints of the completion
 problem (issue #5). When the network also predicts a quadratic slack ``w`` (bounded
-decomposition with a quadratic objective, not implemented yet) its gradient has an
-extra term ``-(Q + Q^\top)w - \ldots`` (see
+decomposition with a quadratic objective, not implemented yet) its gradient with respect
+to ``w`` is ``Q(\hat x - w)`` for the objective ``\tfrac12 x^\top Q x`` (see
 [decomposition detection](background/decomposition_detection.md)).
 
 L2ODLL differentiates the closed forms (4) and (6) with automatic differentiation

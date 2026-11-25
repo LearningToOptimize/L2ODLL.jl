@@ -133,7 +133,7 @@ In the convex QP case, the primal has a strictly convex quadratic objective func
 \begin{aligned}
 & \max\nolimits_{y} & - b^\top y - z^\top Q z
 \\
-& \;\;\text{s.t.} & A^\top y + 2Qz = c
+& \;\;\text{s.t.} & A^\top y - 2Qz = c
 \\
 & & y \in \mathcal{C}^*,\; z \in \mathbb{R}^n
 \end{aligned}
@@ -147,7 +147,7 @@ Then, the completion model is:
 \begin{aligned}
 & \max\nolimits_{z} & - z^\top Q z - b^\top y
 \\
-& \;\;\text{s.t.} & Q z = \frac{1}{2}(c - A^\top y)
+& \;\;\text{s.t.} & Q z = \frac{1}{2}(A^\top y - c)
 \\
 & & z \in \mathbb{R}^n
 \end{aligned}
@@ -160,4 +160,4 @@ Then, the completion model is:
 \end{equation}
 ```
 
-This model admits a closed form solution, $z = \frac{1}{2}Q^{-1}(c - A^\top y)$. Furthermore, the closed form dual solution in this case is $x=z$.
+This model admits a closed form solution, $z = \frac{1}{2}Q^{-1}(A^\top y - c)$, the minimizer of the Lagrangian. Furthermore, the closed form dual solution in this case is $x=z$ (with this sign convention for $z$, which is the one Dualization.jl uses; checked by the `QuadSlackRecoversPrimal` test).

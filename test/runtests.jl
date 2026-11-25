@@ -16,6 +16,7 @@ include("instances.jl")
     include("utilities.jl")
     include("regressions.jl")
     include("guarantees.jl")
+    include("audit.jl")
     include("l2ocore.jl")
     include("qa.jl")
 end
