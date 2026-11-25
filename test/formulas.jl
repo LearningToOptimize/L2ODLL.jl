@@ -152,7 +152,8 @@ end
 
     # DLL Example 3: w is the minimizer of the Lagrangian,
     # so completing the optimal y returns the (unique) primal optimum.
-    @testset "quadratic slack recovers the primal optimum: $name" for (name, make) in INSTANCE_CLASSES[5:end]
+    qp_classes = INSTANCE_CLASSES[5:end]
+    @testset "quadratic slack recovers the primal optimum: $name" for (name, make) in qp_classes
         rng = Random.Xoshiro(hash(name) + 3)
         model, sampler, _ = make(rng)
         L2ODLL.decompose!(model)
