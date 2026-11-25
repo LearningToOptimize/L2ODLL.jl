@@ -30,7 +30,54 @@ function can_decompose(model::JuMP.Model, ::Type{ConvexQP})
             return false
         end
     end
-    return true
+    # Example 3 of Tanneau and Van Hentenryck (2024) needs Q ≻ 0 (Q ≺ 0 for Max):
+    # a diagonal term for every variable is necessary but not sufficient.
+    return is_strictly_convex_objective(model)
+end
+
+"""
+    objective_hessian(model::JuMP.Model, x_ref = decision variables) -> Matrix{Float64}
+
+Hessian of the objective with respect to the decision variables `x_ref` (terms
+involving parameters are excluded): for `f(x) = ½ xᵀHx + …`, returns `H`.
+"""
+function objective_hessian(
+    model::JuMP.Model,
+    x_ref::AbstractVector{JuMP.VariableRef} = filter(!JuMP.is_parameter, JuMP.all_variables(model)),
+)
+    n = length(x_ref)
+    H = zeros(n, n)
+    f = JuMP.objective_function(model)
+    f isa JuMP.GenericQuadExpr || return H
+    idx = _vr_to_idx(x_ref)
+    for (coeff, a, b) in JuMP.quad_terms(f)
+        (haskey(idx, a) && haskey(idx, b)) || continue  # parameter × variable or parameter × parameter
+        i, j = idx[a], idx[b]
+        if i == j
+            H[i, i] += 2coeff
+        else
+            H[i, j] += coeff
+            H[j, i] += coeff
+        end
+    end
+    return H
+end
+
+"""
+    is_strictly_convex_objective(model::JuMP.Model) -> Bool
+
+Whether the objective is strictly convex in the decision variables (for `Min`;
+strictly concave for `Max`), i.e. its Hessian is positive (negative) definite.
+This is the assumption of the `ConvexQP` closed-form completion.
+"""
+function is_strictly_convex_objective(model::JuMP.Model)
+    H = objective_hessian(model)
+    isempty(H) && return false
+    s = JuMP.objective_sense(model) == MOI.MAX_SENSE ? -1.0 : 1.0
+    # `isposdef` accepts exactly singular matrices (zero Cholesky pivot), so test
+    # the smallest eigenvalue against a relative tolerance instead.
+    λ = LinearAlgebra.eigvals(LinearAlgebra.Symmetric(s .* H))
+    return first(λ) > sqrt(eps(Float64)) * max(1.0, maximum(abs, λ))
 end
 
 """
@@ -50,7 +97,9 @@ end
 Closed-form completion `(y_pred, param_value) -> (y, z, w)`: `y` is the projected
 prediction (all constraints are predicted, so `z` is empty) and `w` are the
 quadratic slack variables of the dual, obtained by solving the dual stationarity
-equations for `w` given `y`.
+equations for `w` given `y`. With Dualization's sign convention `w` equals the
+minimizer of the Lagrangian, `x(y) = Q⁻¹(Aᵀy - c)`, so `w` is the primal optimum
+when `y` is dual optimal.
 """
 function convex_qp_completion_builder(decomposition::ConvexQP, proj_fn, dual_model::JuMP.Model; kwargs...)
     return _convex_qp_layers(decomposition, proj_fn, dual_model; kwargs...).completion
@@ -59,6 +108,14 @@ end
 function _convex_qp_layers(decomposition::ConvexQP, proj_fn, dual_model::JuMP.Model;
     backend=nothing
     )
+    if !isempty(decomposition.x_ref)
+        primal = JuMP.owner_model(first(decomposition.x_ref))
+        is_strictly_convex_objective(primal) || error(
+            "The ConvexQP closed-form completion requires a strictly convex quadratic objective " *
+            "(positive definite Hessian for Min, negative definite for Max; Example 3 of " *
+            "Tanneau and Van Hentenryck, 2024). Otherwise the completed value is not a valid bound.",
+        )
+    end
     p_vars = get_p(dual_model, decomposition)
     y_vars = get_y_dual(dual_model, decomposition)
     x_vars = get_x(decomposition)
@@ -112,8 +169,10 @@ function _convex_qp_layers(decomposition::ConvexQP, proj_fn, dual_model::JuMP.Mo
         backend=backend
     )
 
-    # From Aᵀy + Qz = c (Dualization's form of the stationarity condition) to
-    # z = Q⁻¹(c - Aᵀy), the closed form of Example 3 in Tanneau and Van Hentenryck (2024).
+    # Dualization writes the stationarity condition as Aᵀy + Q_d z = c, where Q_d is
+    # the coefficient matrix of z collected above (Q_d = -Q for an objective ½xᵀQx).
+    # Hence z = Q_d⁻¹(c - Aᵀy) = Q⁻¹(Aᵀy - c) = x(y), the Lagrangian minimizer: the
+    # closed form of Example 3 in Tanneau and Van Hentenryck (2024).
     complete_fn = (y_pred, param_value) -> begin
         y_pred_proj = proj_fn(y_pred)
         Qz_val = Qz_fn([flatten_y(y_pred_proj); param_value])
