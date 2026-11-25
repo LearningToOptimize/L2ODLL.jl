@@ -10,7 +10,7 @@ module L2ODLLL2OCoreExt
 #                 (Theorem 1 of Tanneau and Van Hentenryck, 2024)
 #   loss       -> self-supervised: minus the mean dual objective, eq. (27a) of
 #                 Tanneau and Van Hentenryck (2024), written for a minimization loss
-#   guarantees -> ValidDualBound (weak duality for the completed, dual-feasible point)
+#   evaluate   -> L2OCore.dual_bound of the completed, dual-feasible point (weak duality)
 
 using Dualization: Dualization
 using JuMP: JuMP
@@ -35,14 +35,12 @@ function L2ODLL.DLLMethod(; decomposition=nothing, optimizer=nothing)
     return DualLagrangianLearning(decomposition, optimizer)
 end
 
-# Assumptions: convex conic (or convex quadratic) instances, so that the
+# DLL applies to convex conic (or convex quadratic) instances, where the
 # Lagrangian dual of the completed point is a valid bound. Whether a closed-form
 # completion exists is decided per model by `decompose` (it errors otherwise);
 # e.g. a ConvexQuadratic problem with a singular Hessian has no ConvexQP completion.
 L2OCore.supports(::DualLagrangianLearning, ::L2OCore.LinearConic) = true
 L2OCore.supports(::DualLagrangianLearning, ::L2OCore.ConvexQuadratic) = true
-
-L2OCore.guarantees(::DualLagrangianLearning) = (L2OCore.ValidDualBound(),)
 
 """
     DLLDecomposition <: L2OCore.AbstractDecomposition
@@ -127,8 +125,8 @@ Project each predicted `y` onto its dual cone and complete the remaining duals
 (closed form for `BoundDecomposition` / `ConvexQP`, a solver otherwise). The
 returned `dual` is `num_duals × B` in `dual_layout` order with `JuMP.dual` signs.
 
-**Guarantee** `ValidDualBound` (Theorems 1-2 of Tanneau and Van Hentenryck, 2024):
-the completed point is dual feasible, so its Lagrangian value bounds the optimum.
+By Theorems 1-2 of Tanneau and Van Hentenryck (2024), the completed point is dual
+feasible, so its Lagrangian value bounds the optimum.
 """
 function L2OCore.complete(::DualLagrangianLearning, pipe::L2OCore.L2OPipeline, inputs, output)
     d = pipe.decomposition::DLLDecomposition
@@ -168,8 +166,8 @@ end
 
 DLL is self-supervised: without `optimizer` the dataset holds only the sampled
 inputs. With `optimizer`, every instance is solved and the optimal objective
-values and duals are recorded (useful as `reference` for checking
-`ValidDualBound` and for reporting gaps).
+values and duals are recorded (useful for comparing the dual bounds with the
+optimal values and reporting gaps).
 """
 function L2OCore.generate_data(
     ::DualLagrangianLearning,

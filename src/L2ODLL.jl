@@ -88,8 +88,8 @@ const _DECOMPOSITIONS = [ # in order of preference for auto-detection
     DLLMethod(; decomposition = nothing, optimizer = nothing)
 
 Dual Lagrangian Learning as a method of the LearningToOptimize `L2OCore`
-interface (an `L2OCore.AbstractDualMethod` with guarantee
-`L2OCore.ValidDualBound`). Available after `import L2OCore` (package extension).
+interface (an `L2OCore.AbstractDualMethod`). Available after `import L2OCore`
+(package extension).
 
   - `decomposition`: `nothing` to auto-detect (as in [`decompose!`](@ref)), or a
     function `model -> AbstractDecomposition`, e.g. `L2ODLL.BoundDecomposition`.
@@ -99,7 +99,7 @@ interface (an `L2OCore.AbstractDualMethod` with guarantee
 import L2OCore, L2ODLL
 pipe = L2OCore.L2OPipeline(L2OCore.ParametricProblem(model), L2ODLL.DLLMethod())
 pred = L2OCore.complete(pipe, P, Y)        # completed duals, dual_layout order
-L2OCore.check(L2OCore.ValidDualBound(), pipe.problem, P, pred; reference = opt)
+report = L2OCore.evaluate(pipe, P, pred) # report.dual_bound ≤ optimal values
 ```
 """
 function DLLMethod end
@@ -115,7 +115,7 @@ function decompose!(model::JuMP.Model)
             return decompose!(model, decomp(model))
         end
     end
-    return error("Could not detect decomposition that guarantees completion feasibility.")
+    return error("Could not detect a decomposition with a feasible closed-form completion.")
 end
 
 """
@@ -340,9 +340,9 @@ variables, returning a `NamedTuple`:
   - `z`: completed dual variables, one vector per constraint in [`get_z`](@ref);
   - `w`: quadratic slack variables of the dual (empty for affine objectives).
 
-Signs follow `JuMP.dual`. **Guarantee** (Theorem 1 of Tanneau and Van Hentenryck,
-2024): when the decomposition's completion is feasible, `(y, z, w)` is dual
-feasible, so [`dual_objective`](@ref) is a valid bound on the optimal value.
+Signs follow `JuMP.dual`. By Theorem 1 of Tanneau and Van Hentenryck (2024), when
+the decomposition's completion is feasible, `(y, z, w)` is dual feasible, so
+[`dual_objective`](@ref) is a valid bound on the optimal value.
 """
 function dual_completion(model::JuMP.Model, y_predicted, param_value)
     cache = get_cache(model)

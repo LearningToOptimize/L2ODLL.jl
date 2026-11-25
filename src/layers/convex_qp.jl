@@ -123,8 +123,8 @@ function _convex_qp_layers(
     x_vars = get_x(decomposition)
     if !all(x -> has_quadslack(dual_model, x), x_vars)
         @warn "Some primal variables do not have a quadratic objective term, " *
-            "so they do not have a quadratic slack variable in the dual." *
-            "There may not be enough flexibility in the completion model to guarantee feasibility."
+            "so they do not have a quadratic slack variable in the dual. " *
+            "The completion model may not have enough flexibility to be feasible."
     end
     z_vars = get_quadslack(dual_model, decomposition)
     types = filter(

@@ -9,7 +9,6 @@ using L2OCore: L2OCore
     @test L2OCore.supports(method, L2OCore.ConvexQuadratic())
     @test !L2OCore.supports(method, L2OCore.MixedInteger())
     @test !L2OCore.supports(method, L2OCore.SmoothNonlinear())
-    @test L2OCore.guarantees(method) == (L2OCore.ValidDualBound(),)
 
     for (name, make) in INSTANCE_CLASSES
         @testset "$name" begin
@@ -27,35 +26,34 @@ using L2OCore: L2OCore
             @test pred.primal === nothing
             @test size(pred.dual) == (L2OCore.num_duals(problem), B)
 
-            # CoreConsistency: L2OCore's independent Lagrangian dual function of the
+            # L2OCore's independent Lagrangian dual function of the
             # completed duals equals L2ODLL's dual objective, and the completed
             # point is dual feasible.
             bound, infeas = L2OCore.dual_bound(pipe.evaluator, pred.dual, P)
             @test maximum(infeas) <= 1e-8
             @test bound ≈ L2ODLL.dual_objective(model, Z, P) rtol = 1e-8 atol = 1e-8
 
-            # ValidDualBound, checked by L2OCore against solver optima.
+            # The completed duals bound the solver optima (L2OCore's evaluation).
             data = L2OCore.solve_instances(problem, P; optimizer=SOLVER, primal=false, dual=true)
             ok = data.status .== MOI.OPTIMAL
             @test count(ok) >= B - 1
-            res = L2OCore.check(
-                L2OCore.ValidDualBound(),
-                problem,
-                P[:, ok],
-                L2OCore.Prediction(; dual=pred.dual[:, ok]);
-                reference=data.objective[ok],
-                atol=1e-6,
+            report = L2OCore.evaluate(
+                problem, P[:, ok], L2OCore.Prediction(; dual=pred.dual[:, ok]); atol=1e-6
             )
-            @test res.passed
+            opt = data.objective[ok]
+            @test maximum(report.dual_infeasibility) <= 1e-6
+            @test all(
+                bound_sign(model) .* (report.dual_bound .- opt) .<= 1e-6 .* max.(1, abs.(opt))
+            )
 
             # The loss is the (sign-adjusted) mean dual objective: minimizing it
             # maximizes the bound (eq. (27a) of Tanneau and Van Hentenryck, 2024).
             ℓ = L2OCore.loss(pipe, P, Z)
             @test ℓ ≈ -bound_sign(model) * sum(bound) / B
 
-            # TightAtOptimalDual through the pipeline: extract the predicted rows of
-            # the solver's duals (L2ODLL.get_y order), complete them, and recover
-            # the optimal value.
+            # The bound is tight at the optimal duals, through the pipeline: extract
+            # the predicted rows of the solver's duals (L2ODLL.get_y order), complete
+            # them, and recover the optimal value.
             pos = Dict(
                 c => r for
                 (c, r) in zip(L2OCore.constraint_refs(problem), L2OCore.dual_layout(problem))
@@ -95,9 +93,9 @@ end
 
 using Zygote: Zygote
 
-# ReverseModeAD: the DLL loss is differentiable with Zygote (the reverse-mode
+# The DLL loss is differentiable with Zygote (the reverse-mode
 # backend used by Flux and commonly with Lux), and agrees with ForwardDiff.
-@testset "ReverseModeAD" begin
+@testset "Zygote gradient matches ForwardDiff" begin
     for (name, make) in INSTANCE_CLASSES[[1, 3, 5]]
         rng = Random.Xoshiro(21)
         model, sampler, _ = make(rng)
