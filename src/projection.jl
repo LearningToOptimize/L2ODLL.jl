@@ -63,7 +63,8 @@ function make_jump_proj_fn(decomposition::AbstractDecomposition, dual_model::JuM
             JuMP.optimize!(proj_model)
             JuMP.assert_is_solved_and_feasible(proj_model)
             
-            value.(y)
+            # same Vector{Vector} shape as `make_proj_fn`
+            unflatten_y([JuMP.value(y[ij]) for ij in idxs], shapes)
         finally
             unlock(proj_model.ext[:🔒])
         end
