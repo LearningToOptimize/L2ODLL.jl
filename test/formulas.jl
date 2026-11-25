@@ -1,6 +1,5 @@
-# Checks added by the theory audit: assumptions of the closed forms, the explicit
-# formulas of the Theory page, and further claims of the papers. Testset names
-# match the "Guarantees" table of docs/src/theory.md.
+# The hypotheses of the closed forms, the explicit formulas of the Theory page
+# (docs/src/theory.md) computed by hand, and further results of the papers.
 
 # Projected y-blocks of the `ineq` (ℝ₊ duals) and `eq` (free) constraints, looked
 # up by constraint reference (the order of `get_y` follows the constraint types).
@@ -12,11 +11,11 @@ function split_y(model, y)
     return yv, yeq
 end
 
-@testset "Audit" begin
-    # StrictConvexityRequired: Example 3 of Tanneau and Van Hentenryck (2024) needs
+@testset "Closed forms and hypotheses" begin
+    # Example 3 of Tanneau and Van Hentenryck (2024) needs
     # Q ≻ 0. With an indefinite Q the primal below is unbounded (OPT = -∞), so a
     # finite "bound" would be wrong; with a singular Q, Q⁻¹ does not exist.
-    @testset "StrictConvexityRequired" begin
+    @testset "ConvexQP requires a strictly convex objective" begin
         function qp(Q)
             m = JuMP.Model()
             JuMP.@variable(m, x[1:2])
@@ -44,10 +43,10 @@ end
         @test L2ODLL.is_strictly_convex_objective(m)
     end
 
-    # ParametersInCoefficientsRejected: assumption (A1) — parameters only in the
+    # Parametrization (Theory page): parameters only in the
     # constants b(p) and objective coefficients c(p). A parameter multiplying a
     # variable in a constraint is rejected rather than silently mis-handled.
-    @testset "ParametersInCoefficientsRejected" begin
+    @testset "parameters multiplying variables are rejected" begin
         m = JuMP.Model()
         JuMP.@variable(m, 0 <= x[1:2] <= 1)
         JuMP.@variable(m, p in MOI.Parameter(0.5))
@@ -56,9 +55,9 @@ end
         @test_throws Exception L2ODLL.decompose!(m)
     end
 
-    # ObjectiveConstantsIncluded: constants and parameter-only terms of the primal
+    # Constants and parameter-only terms of the primal
     # objective carry over to Φ (tightness at y⋆ would fail otherwise).
-    @testset "ObjectiveConstantsIncluded" begin
+    @testset "objective constants enter the dual objective" begin
         m = JuMP.Model()
         JuMP.@variable(m, 0 <= x[1:2] <= 1)
         JuMP.@variable(m, p in MOI.Parameter(0.5))
@@ -71,9 +70,9 @@ end
         end
     end
 
-    # ConcaveInY (DIPOL Theorem 3; concavity of the Lagrangian dual function): for
+    # DIPOL Theorem 3 (concavity of the Lagrangian dual function): for
     # y₁, y₂ in the dual cone, Φ((y₁+y₂)/2) ≥ (Φ(y₁) + Φ(y₂))/2.
-    @testset "ConcaveInY: $name" for (name, make) in INSTANCE_CLASSES
+    @testset "dual objective is concave in y: $name" for (name, make) in INSTANCE_CLASSES
         rng = Random.Xoshiro(hash(name) + 2)
         model, sampler, _ = make(rng)
         L2ODLL.decompose!(model)
@@ -88,9 +87,9 @@ end
         end
     end
 
-    # OptimalCompletion (DLL Theorem 2): for fixed y the exact completion gives the
+    # DLL Theorem 2: for fixed y the exact completion gives the
     # best bound; any other feasible completion, e.g. the log-barrier one, is worse.
-    @testset "OptimalCompletion" begin
+    @testset "exact completion gives the best bound" begin
         rng = Random.Xoshiro(13)
         for (make, sense) in (
             (bounded_lp, MOI.MIN_SENSE), (bounded_lp, MOI.MAX_SENSE), (bounded_socp, MOI.MAX_SENSE)
@@ -110,10 +109,10 @@ end
         end
     end
 
-    # BoundedClosedFormEq4: Φ = (b + p)ᵀy + (e + 0.1p₁) y_eq + lᵀz_l + uᵀz_u with
+    # Eq. (4): Φ = (b + p)ᵀy + (e + 0.1p₁) y_eq + lᵀz_l + uᵀz_u with
     # z_l = |r|⁺, z_u = -|r|⁻, r = c(p) - Aᵀy - Eᵀy_eq, computed by hand from the
     # data of `bounded_lp` (MOI form: the constants are -(b + p) and -(e + 0.1p₁)).
-    @testset "BoundedClosedFormEq4" begin
+    @testset "bounded closed form (eq. 4) by hand" begin
         rng = Random.Xoshiro(17)
         model, sampler, data = bounded_lp(rng)
         L2ODLL.decompose!(model)
@@ -132,9 +131,9 @@ end
         end
     end
 
-    # ConvexQPClosedFormEq6: Φ = (b + p)ᵀy + e y_eq - ½ rᵀQ⁻¹r with r = c(p) - Aᵀy - Eᵀy_eq
+    # Eq. (6): Φ = (b + p)ᵀy + e y_eq - ½ rᵀQ⁻¹r with r = c(p) - Aᵀy - Eᵀy_eq
     # for the free strictly convex QP min ½xᵀQx + c(p)ᵀx s.t. Ax ≥ b + p, Ex = e.
-    @testset "ConvexQPClosedFormEq6" begin
+    @testset "ConvexQP closed form (eq. 6) by hand" begin
         rng = Random.Xoshiro(19)
         model, sampler, data = convex_qp(rng; bounds=:free)
         L2ODLL.decompose!(model)
@@ -151,9 +150,9 @@ end
         end
     end
 
-    # QuadSlackRecoversPrimal (DLL Example 3): w is the minimizer of the Lagrangian,
+    # DLL Example 3: w is the minimizer of the Lagrangian,
     # so completing the optimal y returns the (unique) primal optimum.
-    @testset "QuadSlackRecoversPrimal: $name" for (name, make) in INSTANCE_CLASSES[5:end]
+    @testset "quadratic slack recovers the primal optimum: $name" for (name, make) in INSTANCE_CLASSES[5:end]
         rng = Random.Xoshiro(hash(name) + 3)
         model, sampler, _ = make(rng)
         L2ODLL.decompose!(model)
@@ -164,12 +163,12 @@ end
         @test w ≈ JuMP.value.(x) atol = 1e-5
     end
 
-    # LogBarrierGradientTheorem5 (DIPOL Theorems 3 and 5): the barrier-augmented
+    # DIPOL Theorems 3 and 5: the barrier-augmented
     # completion value Ξ_μ(r) = max {lᵀz_l + uᵀz_u + μ Σ(ln z_l + ln(-z_u)) : z_l + z_u = r}
     # has derivative x_μ(r) given in closed form by Theorem 5. Evaluating Ξ_μ at
     # L2ODLL's completion (eq. 7) and differentiating checks that eq. 7 is the
     # exact maximizer (envelope theorem) and the closed form of x_μ.
-    @testset "LogBarrierGradientTheorem5" begin
+    @testset "log-barrier gradient matches Theorem 5" begin
         rng = Random.Xoshiro(23)
         n = 15
         l, u = -1 .- rand(rng, n), 1 .+ rand(rng, n)

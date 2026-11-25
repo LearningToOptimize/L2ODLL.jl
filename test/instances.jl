@@ -52,7 +52,7 @@ function bounded_socp(rng; n=4, sense=MOI.MAX_SENSE)
     else
         JuMP.@objective(model, Min, -LinearAlgebra.dot(μ, x))
     end
-    # γ ≥ ‖F‖₂ guarantees that every x in the simplex is feasible.
+    # γ ≥ ‖F‖₂ ensures that every x in the simplex is feasible.
     γmin = LinearAlgebra.opnorm(F)
     sampler = rng -> [randn(rng, n); γmin * (1 + rand(rng))]
     return model, sampler, (; F)
