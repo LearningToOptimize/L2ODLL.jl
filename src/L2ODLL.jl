@@ -15,7 +15,42 @@ const MOIU = JuMP.MOIU
 const MOSD = MathOptSetDistances
 const DI = DifferentiationInterface
 
-abstract type AbstractDecomposition end  # must have p_ref and y_ref and implement can_decompose
+"""
+    AbstractDecomposition
+
+Supertype of DLL decompositions: which primal constraints have their dual
+variables predicted (`y_ref`) and which are completed (`z`). A subtype must have
+the fields `p_ref` (parameters) and `y_ref` (predicted constraints), implement
+[`can_decompose`](@ref) for auto-detection, and either have a `z_ref` field or
+implement [`completed_constraints`](@ref). See the package guide on custom
+decompositions.
+"""
+abstract type AbstractDecomposition end
+
+# Public API. Everything else is reachable as `L2ODLL.name` and documented in
+# the API reference; unexported names may change between minor versions.
+export AbstractDecomposition,
+    BoundDecomposition,
+    ConvexQP,
+    GenericDecomposition,
+    decompose!,
+    dual_objective,
+    dual_objective_gradient,
+    dual_objective_and_gradient,
+    dual_completion,
+    get_y,
+    get_z,
+    y_shape,
+    DLLMethod
+
+"""
+    can_decompose(model::JuMP.Model, ::Type{<:AbstractDecomposition}) -> Bool
+
+Whether the decomposition type applies to `model` with a closed-form completion.
+Used by [`decompose!`](@ref) to auto-detect, in order: `BoundDecomposition`,
+`ConvexQP`, `GenericDecomposition` (never auto-detected).
+"""
+function can_decompose end
 
 include("batch.jl")
 include("layers/generic.jl")
