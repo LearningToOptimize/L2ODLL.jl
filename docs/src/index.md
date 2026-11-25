@@ -35,8 +35,8 @@ Pkg.add(; url = "https://github.com/LearningToOptimize/L2ODLL.jl")
 
 ## Where to go next
 
-- [Theory](theory.md): the optimization problems, assumptions and guarantees, with
-  equation numbers of the papers and the name of the test that checks each claim.
+- [Theory](theory.md): the optimization problems, the completions in closed form
+  and their gradients, with equation numbers of the papers.
 - [Package guide](guide/concepts.md): getting started, concepts, custom
   decompositions, projections and layers.
 - [L2OCore interface](guide/l2ocore.md): using L2ODLL as a method of the

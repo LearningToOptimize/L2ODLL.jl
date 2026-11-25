@@ -103,7 +103,7 @@ decompose!(model, d; optimizer = () -> POI.Optimizer(HiGHS.Optimizer()))
 
 The completion problem (Theory eq. 3) is solved with the given optimizer each call;
 the optimizer must support parameters (e.g. through ParametricOptInterface). The
-completion may be infeasible for an arbitrary split (Theory, assumption of
+completion may be infeasible for an arbitrary split (Theory, hypothesis of
 Theorem 1); the call then throws.
 
 A new decomposition **type** subtypes [`AbstractDecomposition`](@ref) with fields
@@ -113,7 +113,7 @@ is supplied through the builders below.
 
 ### Custom projections
 
-Any map into the dual cone keeps the guarantees, e.g. the radial projection of DLL
+Any map into the dual cone keeps the bound valid, e.g. the radial projection of DLL
 (eq. 26). Pass a function from `y` (vector of vectors) to projected `y`:
 
 ```julia

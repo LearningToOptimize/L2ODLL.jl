@@ -1,8 +1,7 @@
 # Theory
 
-This page states the optimization problems behind L2ODLL, the assumptions under
-which its outputs are guaranteed to be valid, and the name of the numerical test
-that checks each claim. References:
+This page states the optimization problems behind L2ODLL, the dual completions it
+computes in closed form, and their gradients. References:
 
 - **[DLL]** M. Tanneau and P. Van Hentenryck, *Dual Lagrangian Learning for Conic
   Optimization*, NeurIPS 2024, [arXiv:2402.03086](https://arxiv.org/abs/2402.03086).
@@ -55,10 +54,11 @@ For fixed parameters ``p`` consider the conic problem and its dual (DLL 4–5):
 \end{equation}
 ```
 
-**Assumption (A1): parameters enter affinely in the data ``b(p)`` and ``c(p)``**
+**Parametrization.** The parameters enter affinely in the data ``b(p)`` and ``c(p)``
 (constraint constants and linear objective coefficients, e.g. `@objective(m, Max, μ' * x)`
 with parameters `μ`). The constraint matrix ``A`` and the quadratic objective ``Q``
-do not depend on ``p``.
+do not depend on ``p``; a parameter multiplying a variable in a constraint is
+rejected with an error.
 
 **Weak duality.** For every ``p`` and every *dual-feasible* ``y`` (``A^\top y =
 c(p)``, ``y \in \mathcal{C}^*``), ``-b(p)^\top y \le`` the optimal value of the
@@ -122,7 +122,7 @@ In particular ``\Phi(y^\star, p)`` equals the optimal value when ``y^\star`` is 
 
 ## Closed-form completions
 
-The assumption of Theorem 1 holds, and (3) has a closed form, in two structured
+The hypothesis of Theorem 1 holds, and (3) has a closed form, in two structured
 cases that L2ODLL detects automatically ([decomposition detection](background/decomposition_detection.md)).
 
 **Bounded variables (DLL Example 1, eqs. 11–18; [`BoundDecomposition`](@ref)).** If
@@ -178,7 +178,7 @@ MathOptSetDistances.jl (Euclidean projection, DLL eq. 1): `max(y, 0)` for
 ``\mathbb{R}_+``, the identity for equalities, the closed-form projection for
 second-order cones, eigenvalue clipping for PSD cones. DLL also proposes a *radial*
 projection (DLL 26) that avoids zero gradients on the polar cone; any map into
-``\mathcal{C}^*`` keeps the guarantees, and a custom one can be passed as `proj_fn`
+``\mathcal{C}^*`` keeps the bound valid, and a custom one can be passed as `proj_fn`
 to [`decompose!`](@ref) (see the package guide).
 
 ## Gradient of the completed dual objective
@@ -220,36 +220,6 @@ minimization and (7) becomes a minimization. In the L2OCore interface the loss i
 always minimized, so it is ``-\text{mean}\,\Phi`` for minimization problems and
 ``+\text{mean}\,\Phi`` for maximization problems.
 
-## Guarantees and their checks
-
-Each claim is checked numerically in the test suite under the testset of the same
-name (`test/guarantees.jl`, `test/l2ocore.jl`), on seeded random instances of every
-supported class: bounded LPs, bounded SOCPs and strictly convex QPs (with and
-without bounds), minimization and maximization, with parameters in objective
-coefficients, right-hand sides and cone constants.
-
-| name | claim | assumptions | reference |
-|:--|:--|:--|:--|
-| `ValidDualBound` | ``\Phi(\Pi(\hat y), p) \le \mathrm{OPT}(p)`` (``\ge`` for max) for **every** ``\hat y`` | (A1); Theorem 1's assumption (automatic for the closed forms) | DLL Thms 1–2; `L2OCore.ValidDualBound` |
-| `TightAtOptimalDual` | ``\Phi(y^\star, p) = \mathrm{OPT}(p)`` | strong duality | DLL Thm 2 |
-| `ProjectionIdempotent` | ``\Pi(\Pi(\hat y)) = \Pi(\hat y)`` | — | DLL eq. 1 |
-| `ClosedFormMatchesSolver` | (4), (6) equal the solution of (3) computed by a solver | as above | DLL Examples 1, 3 |
-| `GradientMatchesFiniteDifferences` | AD gradient = central differences | ``\hat y`` off the kinks of (4) (almost surely) | — |
-| `GradientMatchesTheorem3` | ``\nabla = -b(p) - A\hat x`` with ``\hat x`` from Theorem 4 | bounded LP, ``\hat y`` in the interior of ``\mathcal{C}^*`` | DIPOL Thms 3–4 |
-| `LogBarrierCompletionFeasible` | (5) satisfies ``z_l + z_u = r``, ``z_l > 0 > z_u``, → (4) as ``\mu \to 0`` | ``l < u`` | DIPOL Thm 2 |
-| `CoreConsistency` | L2OCore's independent Lagrangian bound of the completed duals = ``\Phi``, dual infeasibility ``\le 10^{-8}`` | — | — |
-| `BatchMatchesColumns` | matrix API = per-instance API | — | — |
-| `ReverseModeAD` | Zygote gradient of the L2OCore loss = ForwardDiff | — | — |
-| `StrictConvexityRequired` | `ConvexQP` is used only when ``Q \succ 0`` (``\prec 0`` for max); otherwise detection fails and the builder errors | — | DLL Example 3 |
-| `ParametersInCoefficientsRejected` | a parameter multiplying a variable in a constraint raises an error | violates (A1) | — |
-| `ObjectiveConstantsIncluded` | constants and parameter-only objective terms are part of ``\Phi`` (tightness holds) | — | — |
-| `ConcaveInY` | ``\Phi`` is concave on ``\mathcal{C}^*`` (convex for max) | — | DIPOL Thm 3 |
-| `OptimalCompletion` | for fixed ``\bar y`` the exact completion beats any other feasible one (the log-barrier one) | — | DLL Thm 2 |
-| `BoundedClosedFormEq4` | ``\Phi`` equals eq. (4) computed by hand from the problem data | — | DLL Example 1 |
-| `ConvexQPClosedFormEq6` | ``\Phi`` and ``w`` equal eq. (6) computed by hand | ``Q \succ 0`` | DLL Example 3 |
-| `QuadSlackRecoversPrimal` | ``w(y^\star) = x^\star`` | ``Q \succ 0`` | DLL Example 3 |
-| `LogBarrierGradientTheorem5` | eq. (5) maximizes the barrier completion problem and its value has derivative ``x_\mu(r)`` (closed form of DIPOL Thm 5) | ``l < u``, ``\mu > 0`` | DIPOL Thms 3, 5 |
-
 ## Deviations from the papers
 
 - **Signs.** MOI convention throughout (see above); both forms define the same bound.
@@ -264,7 +234,7 @@ coefficients, right-hand sides and cone constants.
   ``\bar y``. DIPOL trains with the barrier-augmented objective (DIPOL eq. 4), whose
   supergradient is ``-b - A x_\mu`` (Theorems 3, 5); the plain objective has a
   different gradient. The barrier-augmented value can be built from
-  `L2ODLL.complete_zlzu` as in the `LogBarrierGradientTheorem5` test.
-- **Infeasible generic completions.** Only the two closed forms satisfy Theorem 1's
-  assumption by construction. A `GenericDecomposition` completion may be infeasible
+  `L2ODLL.complete_zlzu`, which returns ``(z_l, z_u)`` of (5).
+- **Infeasible generic completions.** Only the two closed forms satisfy the
+  hypothesis of Theorem 1 by construction. A `GenericDecomposition` completion may be infeasible
   (issue #6); the JuMP layer then throws instead of returning a bound.

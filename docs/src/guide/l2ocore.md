@@ -7,8 +7,8 @@ CurrentModule = L2ODLL
 [L2OCore](https://github.com/LearningToOptimize/LearningToOptimize.jl) (in
 `lib/L2OCore` of LearningToOptimize.jl) defines a small, method-agnostic pipeline
 shared by the Learning-to-Optimize packages: a `ParametricProblem`, methods that
-declare which problem classes they `supports` and which `guarantees` they give, and
-the steps `decompose → generate_data → loss → complete → evaluate/check`.
+declare which problem classes they `supports`, and the steps
+`decompose → generate_data → loss → complete → evaluate`.
 L2ODLL implements it as a **dual method**.
 
 ```mermaid
@@ -18,30 +18,29 @@ flowchart LR
     X["inputs P (params × B)"] --> NN["proxy"]
     NN -->|"output (sum(y_shape) × B)"| COMP["complete → Prediction(dual)"]
     NN --> LOSS["loss = ∓ mean Φ"]
-    COMP --> CHK["check(ValidDualBound(), …; reference)"]
-    COMP --> EV["evaluate / dual_bound"]
+    COMP --> EV["evaluate: dual bound, dual infeasibility"]
 ```
 
 | L2OCore function | DLL implementation |
 |:--|:--|
 | `supports` | `LinearConic`, `ConvexQuadratic` |
-| `guarantees` | `(ValidDualBound(),)` |
 | `decompose` | [`decompose!`](@ref) (auto-detected, or `DLLMethod(decomposition = BoundDecomposition)`) |
 | `output_dimension` | `sum(y_shape(model))` |
 | `complete` | projection + completion; full dual in `dual_layout` order with `JuMP.dual` signs |
 | `loss` | self-supervised (Theory eq. 7): ``-\text{mean}\,\Phi`` (min) / ``+\text{mean}\,\Phi`` (max) |
-| `generate_data` | inputs only; with `optimizer`, also optimal objectives and duals (for checking and gaps) |
+| `generate_data` | inputs only; with `optimizer`, also optimal objectives and duals (for gaps) |
 
 ```julia
 import L2OCore, L2ODLL, Clarabel
 problem = L2OCore.ParametricProblem(model)
 pipe = L2OCore.L2OPipeline(problem, L2ODLL.DLLMethod())
 data = L2OCore.generate_data(pipe; sampler = L2OCore.BoxSampler(lo, hi), n = 100,
-                             optimizer = Clarabel.Optimizer)       # references for checking
+                             optimizer = Clarabel.Optimizer)       # solver optima for gaps
 Y = proxy(data.inputs)                                              # sum(y_shape) × 100
 ℓ = L2OCore.loss(pipe, data.inputs, Y)                              # minimize this
 pred = L2OCore.complete(pipe, data.inputs, Y)
-L2OCore.check(L2OCore.ValidDualBound(), problem, data.inputs, pred; reference = data.objective)
+report = L2OCore.evaluate(problem, data.inputs, pred)             # dual bound, dual infeasibility
+gap = (data.objective .- report.dual_bound) ./ max.(1, abs.(data.objective))
 ```
 
 The [economic dispatch example](../examples/economic_dispatch.md) runs this end to end.
@@ -66,10 +65,10 @@ depend on that branch. As a weak dependency:
 DLL's loss needs only **first-order** derivatives of ``\Phi`` with respect to the
 proxy output (then the chain rule through the proxy), so it does not need nested AD.
 
-| backend | through `dual_objective` / `L2OCore.loss` | evidence |
+| backend | through `dual_objective` / `L2OCore.loss` | tested against |
 |:--|:--|:--|
-| ForwardDiff | yes (default `ad_type`) | `GradientMatchesFiniteDifferences` |
-| Zygote | yes | `ReverseModeAD` (equals ForwardDiff to ``10^{-10}``) |
+| ForwardDiff | yes (default `ad_type`) | central finite differences |
+| Zygote | yes | ForwardDiff, to ``10^{-10}`` |
 | FiniteDifferences / other DI backends | yes, via `ad_type` | — |
 | solver-based layers (`jump_builder`) | no AD; gradients would need the dual of the completion (issue #5) | — |
 

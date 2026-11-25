@@ -63,19 +63,19 @@ See the [economic dispatch example](https://learningtooptimize.github.io/L2ODLL.
 - A proxy producing `sum(y_shape(model))` outputs per instance, in any Julia ML
   framework (gradients work with ForwardDiff and Zygote).
 
-## Guarantees
+## Why the bound is valid
 
-Under these assumptions, for every prediction the completed point is dual feasible
-and `dual_objective` is a valid bound (Theorems 1–2 of the DLL paper); completing
-the optimal duals recovers the optimal value. Each claim is checked numerically in
-the tests on random instances; see the
-[Theory page](https://learningtooptimize.github.io/L2ODLL.jl/dev/theory/).
+For these problems the completion is always dual feasible, so by weak duality
+`dual_objective` is a bound on the optimal value for every prediction, and completing
+the optimal duals recovers the optimal value (Theorems 1–2 of the DLL paper). The
+[Theory page](https://learningtooptimize.github.io/L2ODLL.jl/dev/theory/) writes out
+the problems and the closed-form completions.
 
 ## LearningToOptimize ecosystem
 
 L2ODLL implements the method interface of `L2OCore`
 ([LearningToOptimize.jl](https://github.com/LearningToOptimize/LearningToOptimize.jl))
-as a dual method with guarantee `ValidDualBound` (`import L2OCore` loads it;
+as a dual method (`import L2OCore` loads it;
 `L2ODLL.DLLMethod()`), so it can be used, compared and evaluated in the same
 pipeline as the primal methods of the ecosystem. Related packages:
 [LearningToOptimize.jl](https://github.com/LearningToOptimize/LearningToOptimize.jl),

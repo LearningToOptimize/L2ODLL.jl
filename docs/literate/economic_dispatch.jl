@@ -86,14 +86,15 @@ all(bounds .<= opt_test .+ 1e-6)
 # ## The same through L2OCore
 #
 # With `import L2OCore` the method plugs into the shared LearningToOptimize
-# pipeline, which checks the `ValidDualBound` guarantee independently (its own
-# Lagrangian dual function of the completed duals, against the solver optima):
+# pipeline. Its `evaluate` recomputes the Lagrangian dual function of the
+# completed duals independently, together with their dual infeasibility:
 
 using L2OCore: L2OCore
 problem = L2OCore.ParametricProblem(model)
 pipe = L2OCore.L2OPipeline(problem, DLLMethod())
 pred = L2OCore.complete(pipe, Ptest, proxy(W, w0, Ptest))
-L2OCore.check(L2OCore.ValidDualBound(), problem, Ptest, pred; reference=opt_test)
+report = L2OCore.evaluate(problem, Ptest, pred)
+maximum(report.dual_infeasibility), maximum(abs.(report.dual_bound .- bounds))
 
 # and its loss is the negated mean bound used above:
 
