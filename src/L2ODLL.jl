@@ -50,6 +50,26 @@ const _DECOMPOSITIONS = [ # in order of preference for auto-detection
 ]
 
 """
+    DLLMethod(; decomposition = nothing, optimizer = nothing)
+
+Dual Lagrangian Learning as a method of the LearningToOptimize `L2OCore`
+interface (an `L2OCore.AbstractDualMethod` with guarantee
+`L2OCore.ValidDualBound`). Available after `import L2OCore` (package extension).
+
+  - `decomposition`: `nothing` to auto-detect (as in [`decompose!`](@ref)), or a
+    function `model -> AbstractDecomposition`, e.g. `L2ODLL.BoundDecomposition`.
+  - `optimizer`: used when the decomposition has no closed-form completion.
+
+```julia
+import L2OCore, L2ODLL
+pipe = L2OCore.L2OPipeline(L2OCore.ParametricProblem(model), L2ODLL.DLLMethod())
+pred = L2OCore.complete(pipe, P, Y)        # completed duals, dual_layout order
+L2OCore.check(L2OCore.ValidDualBound(), pipe.problem, P, pred; reference = opt)
+```
+"""
+function DLLMethod end
+
+"""
     decompose!(model::JuMP.Model)
 
 Detect the best decomposition and build the DLL functions.
@@ -335,6 +355,15 @@ function unflatten_y(y::Vector{T}, y_shape::Vector{Int}) where T
     # Non-mutating so that reverse-mode AD (e.g. Zygote) can differentiate through it.
     stops = cumsum(y_shape)
     return Vector{T}[y[(stop - len + 1):stop] for (len, stop) in zip(y_shape, stops)]
+end
+
+function __init__()
+    Base.Experimental.register_error_hint(MethodError) do io, exc, _, _
+        if exc.f === DLLMethod
+            print(io, "\n`L2ODLL.DLLMethod` is defined by a package extension; run `import L2OCore` first.")
+        end
+    end
+    return nothing
 end
 
 end  # module
