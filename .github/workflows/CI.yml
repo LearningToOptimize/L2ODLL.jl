@@ -5,6 +5,7 @@ on:
       - main
     tags: ['*']
   pull_request:
+  workflow_dispatch:
 concurrency:
   # Skip intermediate builds: always.
   # Cancel intermediate builds: only if it is a pull request build.
@@ -14,21 +15,46 @@ jobs:
   test:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    permissions: # needed to allow julia-actions/cache to delete old caches that it has created
+      actions: write
+      contents: read
     strategy:
       fail-fast: false
       matrix:
         version:
-          - '1'
+          - '1.10' # LTS
+          - '1'    # latest release
         os:
           - ubuntu-latest
         arch:
           - x64
     steps:
-      - uses: actions/checkout@v3
-      - uses: julia-actions/setup-julia@v1
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
         with:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
-      - uses: julia-actions/cache@v1
+      - uses: julia-actions/cache@v2
+      # L2OCore (weak dependency, used by the tests) is not registered yet.
+      # Julia >= 1.11 reads [sources] in Project.toml; Julia 1.10 needs it added.
+      - name: Add unregistered L2OCore (Julia 1.10)
+        if: matrix.version == '1.10'
+        shell: julia --color=yes --project=. {0}
+        run: |
+          using Pkg
+          Pkg.add(PackageSpec(url="https://github.com/LearningToOptimize/LearningToOptimize.jl",
+                              subdir="lib/L2OCore", rev="ar/l2ocore-design"))
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
+        env:
+          JULIA_NUM_THREADS: 2
+      - uses: julia-actions/julia-processcoverage@v1
+        with:
+          directories: src,ext
+      - uses: codecov/codecov-action@v5
+        with:
+          files: lcov.info
+          token: ${{ secrets.CODECOV_TOKEN }}
+          # Do not fail the build while the Codecov token is not configured.
+          fail_ci_if_error: false

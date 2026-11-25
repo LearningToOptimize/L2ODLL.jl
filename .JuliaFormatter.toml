@@ -1,0 +1,4 @@
+# BlueStyle-like defaults, as in other LearningToOptimize packages.
+style = "blue"
+margin = 100
+always_for_in = true

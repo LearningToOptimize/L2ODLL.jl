@@ -1,0 +1,28 @@
+name: Format check
+on:
+  pull_request:
+  workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    # Advisory until the existing sources are formatted in a dedicated PR.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1'
+      - name: Run JuliaFormatter
+        shell: julia --color=yes {0}
+        run: |
+          import Pkg
+          Pkg.add(Pkg.PackageSpec(name = "JuliaFormatter", version = "1"))
+          import JuliaFormatter
+          JuliaFormatter.format(["src", "ext", "test", "docs"]; verbose = true)
+      - name: Report formatting differences
+        run: |
+          git diff --stat
+          git diff --exit-code
