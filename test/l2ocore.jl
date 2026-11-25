@@ -75,3 +75,20 @@ import L2OCore
         @test size(pred.dual, 2) == 1
     end
 end
+
+import Zygote
+
+# ReverseModeAD: the DLL loss is differentiable with Zygote (the reverse-mode
+# backend used by Flux and commonly with Lux), and agrees with ForwardDiff.
+@testset "ReverseModeAD" begin
+    for (name, make) in INSTANCE_CLASSES[[1, 3, 5]]
+        rng = Random.Xoshiro(21)
+        model, sampler, _ = make(rng)
+        pipe = L2OCore.L2OPipeline(L2OCore.ParametricProblem(model), L2ODLL.DLLMethod())
+        P = reduce(hcat, [sampler(rng) for _ in 1:3])
+        Z = randn(rng, L2OCore.output_dimension(pipe), 3)
+        gz = only(Zygote.gradient(z -> L2OCore.loss(pipe, P, z), Z))
+        gf = ForwardDiff.gradient(z -> L2OCore.loss(pipe, P, z), Z)
+        @test gz ≈ gf rtol = 1e-10 atol = 1e-12
+    end
+end

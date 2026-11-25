@@ -21,24 +21,43 @@ L2OCore = "53c59b28-8e5d-4af1-a2cf-8fe137dcdc09"
 [extensions]
 L2ODLLL2OCoreExt = "L2OCore"
 
+# L2OCore is not registered yet. Julia >= 1.11 reads this; on Julia 1.10, CI adds
+# it explicitly (see .github/workflows/CI.yml).
 [sources]
 L2OCore = {url = "https://github.com/LearningToOptimize/LearningToOptimize.jl", rev = "ar/l2ocore-design", subdir = "lib/L2OCore"}
 
 [compat]
 Adapt = "4.3.0"
+Aqua = "0.8"
+Clarabel = "0.9, 0.10, 0.11"
+DifferentiationInterface = "0.6.30, 0.7"
 Dualization = "0.7"
+ExplicitImports = "1"
+ForwardDiff = "0.10, 1"
+HiGHS = "1"
+JET = "0.9, 0.10, 0.11, 0.12, 0.13"
+JuMP = "1.15"
 L2OCore = "0.1"
+LinearAlgebra = "1"
+MathOptInterface = "1.20"
 MathOptSetDistances = "=0.2.11"
+ParametricOptInterface = "0.8 - 0.15"
+Random = "1"
+SparseArrays = "1"
+Test = "1"
+Zygote = "0.6, 0.7"
+julia = "1.10"
 
 [extras]
+Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
 Clarabel = "61c947e1-3e6d-4ee4-985a-eec8c727bd6e"
-HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
+ExplicitImports = "7d51a73a-1435-4ff3-83d9-f097790105c7"
 HiGHS = "87dc4568-4c63-4d18-b0c0-bb2238e4078b"
-JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
+JET = "c3a54625-cd67-489e-a8e7-0a5a0ff4e31b"
 L2OCore = "53c59b28-8e5d-4af1-a2cf-8fe137dcdc09"
 ParametricOptInterface = "0ce4ce61-57bf-432b-a095-efac525d185e"
-Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [targets]
-test = ["Test", "HTTP", "JSON", "Clarabel", "HiGHS", "L2OCore", "Pkg", "ParametricOptInterface"]
+test = ["Aqua", "Clarabel", "ExplicitImports", "HiGHS", "JET", "L2OCore", "ParametricOptInterface", "Test", "Zygote"]
