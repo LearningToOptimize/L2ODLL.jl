@@ -36,9 +36,11 @@ end
         @test L2ODLL.objective_hessian(m) ≈ [2.0 0.4; 0.4 2.0]
         @test L2ODLL.is_strictly_convex_objective(m)
         # Max of a concave objective is accepted; Max of a convex one is not.
-        m = qp([1.0 0.0; 0.0 1.0]); JuMP.set_objective_sense(m, MOI.MAX_SENSE)
+        m = qp([1.0 0.0; 0.0 1.0])
+        JuMP.set_objective_sense(m, MOI.MAX_SENSE)
         @test !L2ODLL.is_strictly_convex_objective(m)
-        m = qp(-[1.0 0.0; 0.0 1.0]); JuMP.set_objective_sense(m, MOI.MAX_SENSE)
+        m = qp(-[1.0 0.0; 0.0 1.0])
+        JuMP.set_objective_sense(m, MOI.MAX_SENSE)
         @test L2ODLL.is_strictly_convex_objective(m)
     end
 
@@ -90,14 +92,16 @@ end
     # best bound; any other feasible completion, e.g. the log-barrier one, is worse.
     @testset "OptimalCompletion" begin
         rng = Random.Xoshiro(13)
-        for (make, sense) in ((bounded_lp, MOI.MIN_SENSE), (bounded_lp, MOI.MAX_SENSE), (bounded_socp, MOI.MAX_SENSE))
+        for (make, sense) in (
+            (bounded_lp, MOI.MIN_SENSE), (bounded_lp, MOI.MAX_SENSE), (bounded_socp, MOI.MAX_SENSE)
+        )
             model, sampler, _ = make(rng; sense)
             L2ODLL.decompose!(model)
             cache = L2ODLL.get_cache(model)
             d, dm = cache.decomposition, cache.dual_model
             s = bound_sign(model)
             for μ in (1e-2, 1.0)
-                logΦ = L2ODLL.bounded_builder(d, cache.y_proj, dm; completion = :log, μ)
+                logΦ = L2ODLL.bounded_builder(d, cache.y_proj, dm; completion=:log, μ)
                 for _ in 1:5
                     pv, y = sampler(rng), random_y(rng, model)
                     @test s * logΦ(y, pv) <= s * L2ODLL.dual_objective(model, y, pv) + 1e-10
@@ -119,8 +123,11 @@ end
             y = random_y(rng, model)
             yv, yeq = split_y(model, y)
             r = data.c .+ data.C * pv .- data.A' * yv .- vec(data.E) .* yeq
-            Φ = (data.b .+ pv)' * yv + (data.e[1] + 0.1pv[1]) * yeq +
-                data.l' * max.(r, 0) + data.u' * min.(r, 0)
+            Φ =
+                (data.b .+ pv)' * yv +
+                (data.e[1] + 0.1pv[1]) * yeq +
+                data.l' * max.(r, 0) +
+                data.u' * min.(r, 0)
             @test L2ODLL.dual_objective(model, y, pv) ≈ Φ rtol = 1e-10
         end
     end
@@ -129,7 +136,7 @@ end
     # for the free strictly convex QP min ½xᵀQx + c(p)ᵀx s.t. Ax ≥ b + p, Ex = e.
     @testset "ConvexQPClosedFormEq6" begin
         rng = Random.Xoshiro(19)
-        model, sampler, data = convex_qp(rng; bounds = :free)
+        model, sampler, data = convex_qp(rng; bounds=:free)
         L2ODLL.decompose!(model)
         m = length(data.b)
         for _ in 1:5
@@ -185,9 +192,13 @@ end
         JuMP.@constraint(m, x[1] + x[2] >= p)
         JuMP.@objective(m, Min, x[1] + 2x[2])
         cache = L2ODLL.decompose!(m)
-        @test_throws ErrorException L2ODLL.bounded_builder(cache.decomposition, cache.y_proj, cache.dual_model; completion = :log, μ = 0.1)
+        @test_throws ErrorException L2ODLL.bounded_builder(
+            cache.decomposition, cache.y_proj, cache.dual_model; completion=:log, μ=0.1
+        )
         model, _, _ = bounded_lp(rng)
         cache = L2ODLL.decompose!(model)
-        @test_throws ErrorException L2ODLL.bounded_builder(cache.decomposition, cache.y_proj, cache.dual_model; completion = :log, μ = 0.0)
+        @test_throws ErrorException L2ODLL.bounded_builder(
+            cache.decomposition, cache.y_proj, cache.dual_model; completion=:log, μ=0.0
+        )
     end
 end

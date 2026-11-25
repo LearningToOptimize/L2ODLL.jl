@@ -1,6 +1,6 @@
 # Regression tests for fixed bugs.
 
-import Clarabel
+using Clarabel: Clarabel
 
 @testset "Regressions" begin
     function small_bounded_lp()
@@ -23,23 +23,29 @@ import Clarabel
 
     @testset "GenericDecomposition with an optimizer" begin
         m, _, c1 = small_bounded_lp()
-        L2ODLL.decompose!(m, L2ODLL.GenericDecomposition(m, [c1]);
-            optimizer = () -> ParametricOptInterface.Optimizer(HiGHS.Optimizer()))
+        L2ODLL.decompose!(
+            m,
+            L2ODLL.GenericDecomposition(m, [c1]);
+            optimizer=() -> ParametricOptInterface.Optimizer(HiGHS.Optimizer()),
+        )
         m2, _, _ = small_bounded_lp()
         L2ODLL.decompose!(m2)
         for y in ([[0.3]], [[2.5]], [[-1.0]])
-            @test L2ODLL.dual_objective(m, y, [1.0]) ≈ L2ODLL.dual_objective(m2, y, [1.0]) atol = 1e-6
+            @test L2ODLL.dual_objective(m, y, [1.0]) ≈ L2ODLL.dual_objective(m2, y, [1.0]) atol =
+                1e-6
         end
         @test L2ODLL.get_z(m) == L2ODLL.completed_constraints(L2ODLL.get_cache(m).decomposition)
         @test length(L2ODLL.dual_completion(m, [[0.3]], [1.0]).z) == 4
-        @test_throws ErrorException L2ODLL.decompose!(small_bounded_lp()[1],
-            L2ODLL.GenericDecomposition(small_bounded_lp()[1], JuMP.ConstraintRef[]))
+        @test_throws ErrorException L2ODLL.decompose!(
+            small_bounded_lp()[1],
+            L2ODLL.GenericDecomposition(small_bounded_lp()[1], JuMP.ConstraintRef[]),
+        )
     end
 
     @testset "make_jump_proj_fn matches make_proj_fn" begin
         m, _, _ = small_bounded_lp()
         d = L2ODLL.BoundDecomposition(m)
-        dm = L2ODLL.Dualization.dualize(m; consider_constrained_variables = false)
+        dm = L2ODLL.Dualization.dualize(m; consider_constrained_variables=false)
         jproj = L2ODLL.make_jump_proj_fn(d, dm, Clarabel.Optimizer)
         proj = L2ODLL.make_proj_fn(d, dm)
         for y in ([[0.3]], [[-0.3]])
@@ -66,7 +72,9 @@ import Clarabel
 
     @testset "Custom layer without completion" begin
         m, _, _ = small_bounded_lp()
-        L2ODLL.decompose!(m, L2ODLL.BoundDecomposition(m); dll_layer_builder = (d, p, dm) -> ((y, pv) -> 0.0))
+        L2ODLL.decompose!(
+            m, L2ODLL.BoundDecomposition(m); dll_layer_builder=(d, p, dm) -> ((y, pv) -> 0.0)
+        )
         @test L2ODLL.dual_objective(m, [[1.0]], [1.0]) == 0.0
         @test_throws ErrorException L2ODLL.dual_completion(m, [[1.0]], [1.0])
     end

@@ -2,10 +2,10 @@
 # the claim it checks (see docs/src/background/theory.md, "Guarantees"), so that
 # a formal proof can later be attached to the same name.
 
-import Clarabel
+using Clarabel: Clarabel
 import DifferentiationInterface as DI
-import ForwardDiff
-import ParametricOptInterface
+using ForwardDiff: ForwardDiff
+using ParametricOptInterface: ParametricOptInterface
 
 const NUM_INSTANCES = 4      # parameter draws per class
 const NUM_PREDICTIONS = 5    # random predictions per parameter draw
@@ -81,12 +81,17 @@ const POI_SOLVER = () -> ParametricOptInterface.Optimizer(HiGHS.Optimizer())  # 
         m1, sampler, _ = make(rng)
         m2, _, _ = make(Random.Xoshiro(7))
         L2ODLL.decompose!(m1)
-        L2ODLL.decompose!(m2, D(m2); dll_layer_builder = (d, p, dm) -> L2ODLL.jump_builder(d, p, dm, POI_SOLVER),
-            completion_builder = (d, p, dm) -> L2ODLL.jump_completion_builder(d, p, dm, POI_SOLVER))
+        L2ODLL.decompose!(
+            m2,
+            D(m2);
+            dll_layer_builder=(d, p, dm) -> L2ODLL.jump_builder(d, p, dm, POI_SOLVER),
+            completion_builder=(d, p, dm) -> L2ODLL.jump_completion_builder(d, p, dm, POI_SOLVER),
+        )
         for _ in 1:3
             pv = sampler(rng)
             y = random_y(rng, m1)
-            @test L2ODLL.dual_objective(m1, y, pv) ≈ L2ODLL.dual_objective(m2, y, pv) rtol = 1e-6 atol = 1e-6
+            @test L2ODLL.dual_objective(m1, y, pv) ≈ L2ODLL.dual_objective(m2, y, pv) rtol = 1e-6 atol =
+                1e-6
             c1 = L2ODLL.dual_completion(m1, y, pv)
             c2 = L2ODLL.dual_completion(m2, y, pv)
             if D === L2ODLL.ConvexQP
@@ -105,7 +110,7 @@ const POI_SOLVER = () -> ParametricOptInterface.Optimizer(HiGHS.Optimizer())  # 
     # where the projection is the identity.
     @testset "GradientMatchesTheorem3" begin
         rng = Random.Xoshiro(3)
-        model, sampler, data = bounded_lp(rng; equality = false)
+        model, sampler, data = bounded_lp(rng; equality=false)
         L2ODLL.decompose!(model)
         for _ in 1:5
             pv = sampler(rng)
@@ -115,12 +120,13 @@ const POI_SOLVER = () -> ParametricOptInterface.Optimizer(HiGHS.Optimizer())  # 
             r = c .- data.A' * yv
             x̂ = ifelse.(r .> 0, data.l, data.u)
             expected = (data.b .+ pv) .- data.A * x̂
-            @test L2ODLL.flatten_y(L2ODLL.dual_objective_gradient(model, y, pv)) ≈ expected atol = 1e-10
+            @test L2ODLL.flatten_y(L2ODLL.dual_objective_gradient(model, y, pv)) ≈ expected atol =
+                1e-10
             # and the completed z matches Example 1: zˡ = |r|⁺, zᵘ = -|r|⁻
             z = L2ODLL.flatten_y(L2ODLL.dual_completion(model, y, pv).z)
             n = length(r)
             @test z[1:n] ≈ max.(r, 0)
-            @test z[(n+1):end] ≈ min.(r, 0)
+            @test z[(n + 1):end] ≈ min.(r, 0)
         end
     end
 
@@ -161,7 +167,7 @@ const POI_SOLVER = () -> ParametricOptInterface.Optimizer(HiGHS.Optimizer())  # 
         end
         @test v2 ≈ vals
         @test G2 ≈ G
-        @test_throws DimensionMismatch L2ODLL.dual_objective(model, Y[1:end-1, :], P)
-        @test_throws DimensionMismatch L2ODLL.dual_objective(model, Y, P[:, 1:end-1])
+        @test_throws DimensionMismatch L2ODLL.dual_objective(model, Y[1:(end - 1), :], P)
+        @test_throws DimensionMismatch L2ODLL.dual_objective(model, Y, P[:, 1:(end - 1)])
     end
 end

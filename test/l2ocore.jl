@@ -1,6 +1,6 @@
 # The L2OCore interface (package extension L2ODLLL2OCoreExt).
 
-import L2OCore
+using L2OCore: L2OCore
 
 @testset "L2OCore interface" begin
     method = L2ODLL.DLLMethod()
@@ -35,11 +35,17 @@ import L2OCore
             @test bound ≈ L2ODLL.dual_objective(model, Z, P) rtol = 1e-8 atol = 1e-8
 
             # ValidDualBound, checked by L2OCore against solver optima.
-            data = L2OCore.solve_instances(problem, P; optimizer = SOLVER, primal = false, dual = true)
+            data = L2OCore.solve_instances(problem, P; optimizer=SOLVER, primal=false, dual=true)
             ok = data.status .== MOI.OPTIMAL
             @test count(ok) >= B - 1
-            res = L2OCore.check(L2OCore.ValidDualBound(), problem, P[:, ok],
-                L2OCore.Prediction(dual = pred.dual[:, ok]); reference = data.objective[ok], atol = 1e-6)
+            res = L2OCore.check(
+                L2OCore.ValidDualBound(),
+                problem,
+                P[:, ok],
+                L2OCore.Prediction(; dual=pred.dual[:, ok]);
+                reference=data.objective[ok],
+                atol=1e-6,
+            )
             @test res.passed
 
             # The loss is the (sign-adjusted) mean dual objective: minimizing it
@@ -50,33 +56,44 @@ import L2OCore
             # TightAtOptimalDual through the pipeline: extract the predicted rows of
             # the solver's duals (L2ODLL.get_y order), complete them, and recover
             # the optimal value.
-            pos = Dict(c => r for (c, r) in zip(L2OCore.constraint_refs(problem), L2OCore.dual_layout(problem)))
+            pos = Dict(
+                c => r for
+                (c, r) in zip(L2OCore.constraint_refs(problem), L2OCore.dual_layout(problem))
+            )
             rows = reduce(vcat, [collect(pos[c]) for c in L2ODLL.get_y(model)])
             Ystar = data.dual[rows, ok]
-            bstar, _ = L2OCore.dual_bound(pipe.evaluator, L2OCore.complete(pipe, P[:, ok], Ystar).dual, P[:, ok]; atol = 1e-5)
+            bstar, _ = L2OCore.dual_bound(
+                pipe.evaluator, L2OCore.complete(pipe, P[:, ok], Ystar).dual, P[:, ok]; atol=1e-5
+            )
             @test bstar ≈ data.objective[ok] rtol = 1e-5 atol = 1e-5
 
             # Self-supervised data: inputs only unless an optimizer is given.
-            ds = L2OCore.generate_data(pipe; sampler = L2OCore.BoxSampler(P[:, 1] .- 1e-3, P[:, 1] .+ 1e-3), n = 2, rng)
+            ds = L2OCore.generate_data(
+                pipe; sampler=L2OCore.BoxSampler(P[:, 1] .- 1e-3, P[:, 1] .+ 1e-3), n=2, rng
+            )
             @test ds.dual === nothing && ds.objective === nothing
             @test size(ds.inputs) == (L2OCore.num_parameters(problem), 2)
 
-            @test_throws DimensionMismatch L2OCore.complete(pipe, P, Z[1:end-1, :])
+            @test_throws DimensionMismatch L2OCore.complete(pipe, P, Z[1:(end - 1), :])
         end
     end
 
     @testset "Explicit decomposition" begin
         model, sampler, _ = bounded_lp(Random.Xoshiro(1))
-        pipe = L2OCore.L2OPipeline(L2OCore.ParametricProblem(model),
-            L2ODLL.DLLMethod(decomposition = L2ODLL.BoundDecomposition))
+        pipe = L2OCore.L2OPipeline(
+            L2OCore.ParametricProblem(model),
+            L2ODLL.DLLMethod(; decomposition=L2ODLL.BoundDecomposition),
+        )
         @test pipe.decomposition.cache.decomposition isa L2ODLL.BoundDecomposition
         P = reshape(sampler(Random.Xoshiro(2)), :, 1)
-        pred = L2OCore.complete(pipe, P, randn(Random.Xoshiro(3), L2OCore.output_dimension(pipe), 1))
+        pred = L2OCore.complete(
+            pipe, P, randn(Random.Xoshiro(3), L2OCore.output_dimension(pipe), 1)
+        )
         @test size(pred.dual, 2) == 1
     end
 end
 
-import Zygote
+using Zygote: Zygote
 
 # ReverseModeAD: the DLL loss is differentiable with Zygote (the reverse-mode
 # backend used by Flux and commonly with Lux), and agrees with ForwardDiff.

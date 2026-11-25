@@ -12,10 +12,11 @@ module L2ODLLL2OCoreExt
 #                 Tanneau and Van Hentenryck (2024), written for a minimization loss
 #   guarantees -> ValidDualBound (weak duality for the completed, dual-feasible point)
 
-import JuMP
-import L2OCore
-import L2ODLL
-import Random
+using Dualization: Dualization
+using JuMP: JuMP
+using L2OCore: L2OCore
+using L2ODLL: L2ODLL
+using Random: Random
 
 const MOI = JuMP.MOI
 
@@ -30,7 +31,7 @@ struct DualLagrangianLearning{D,O} <: L2OCore.AbstractDualMethod
     optimizer::O      # optimizer for completions without a closed form, or nothing
 end
 
-function L2ODLL.DLLMethod(; decomposition = nothing, optimizer = nothing)
+function L2ODLL.DLLMethod(; decomposition=nothing, optimizer=nothing)
     return DualLagrangianLearning(decomposition, optimizer)
 end
 
@@ -65,7 +66,7 @@ function L2OCore.decompose(problem::L2OCore.ParametricProblem, m::DualLagrangian
     cache = if m.decomposition === nothing
         L2ODLL.decompose!(model)
     else
-        L2ODLL.decompose!(model, m.decomposition(model); optimizer = m.optimizer)
+        L2ODLL.decompose!(model, m.decomposition(model); optimizer=m.optimizer)
     end
     cache.completion === nothing &&
         error("the DLL decomposition has no completion; pass `optimizer` to `DLLMethod`")
@@ -83,8 +84,8 @@ function _dual_permutation(problem::L2OCore.ParametricProblem, cache::L2ODLL.DLL
     dual_model = cache.dual_model
     for refs in (cache.decomposition.y_ref, L2ODLL.completed_constraints(cache.decomposition))
         for cr in refs
-            n = length(L2ODLL.Dualization._get_dual_variables(dual_model, cr))
-            rows[cr] = (offset+1):(offset+n)
+            n = length(Dualization._get_dual_variables(dual_model, cr))
+            rows[cr] = (offset + 1):(offset + n)
             offset += n
         end
     end
@@ -134,7 +135,7 @@ function L2OCore.complete(::DualLagrangianLearning, pipe::L2OCore.L2OPipeline, i
     P, Z = _asbatch(inputs), _asbatch(output)
     _check_output(d, Z, P)
     cols = [_complete_column(d, view(Z, :, k), view(P, :, k)) for k in axes(Z, 2)]
-    return L2OCore.Prediction(dual = reduce(hcat, cols))
+    return L2OCore.Prediction(; dual=reduce(hcat, cols))
 end
 
 # Sign that turns the dual objective into a quantity to *minimize*: the dual
@@ -148,13 +149,16 @@ Self-supervised DLL loss, eq. (27a) of Tanneau and Van Hentenryck (2024): the
 mean dual objective of the completed predictions, negated for minimization
 problems so that the loss is always minimized. Needs no labels.
 """
-function L2OCore.loss(::DualLagrangianLearning, pipe::L2OCore.L2OPipeline, inputs, output; kwargs...)
+function L2OCore.loss(
+    ::DualLagrangianLearning, pipe::L2OCore.L2OPipeline, inputs, output; kwargs...
+)
     d = pipe.decomposition::DLLDecomposition
     P, Z = _asbatch(inputs), _asbatch(output)
     _check_output(d, Z, P)
     vals = [
-        L2ODLL.dual_objective(d.model, L2ODLL.unflatten_y(collect(Z[:, k]), d.y_shape), collect(P[:, k]))
-        for k in axes(Z, 2)
+        L2ODLL.dual_objective(
+            d.model, L2ODLL.unflatten_y(collect(Z[:, k]), d.y_shape), collect(P[:, k])
+        ) for k in axes(Z, 2)
     ]
     return _loss_sign(d.model) * sum(vals) / length(vals)
 end
@@ -172,13 +176,13 @@ function L2OCore.generate_data(
     pipe::L2OCore.L2OPipeline;
     sampler,
     n::Integer,
-    rng::Random.AbstractRNG = Random.default_rng(),
-    optimizer = nothing,
+    rng::Random.AbstractRNG=Random.default_rng(),
+    optimizer=nothing,
     kwargs...,
 )
     P = L2OCore.sample_parameters(sampler, rng, n)
     optimizer === nothing && return L2OCore.L2ODataset(P)
-    return L2OCore.solve_instances(pipe.problem, P; optimizer, primal = false, dual = true, kwargs...)
+    return L2OCore.solve_instances(pipe.problem, P; optimizer, primal=false, dual=true, kwargs...)
 end
 
 end # module

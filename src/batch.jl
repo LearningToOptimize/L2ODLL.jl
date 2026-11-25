@@ -14,21 +14,15 @@ struct VecAffExprMatrix{M,V} <: AbstractExprMatrix
     b::V
 end
 
-
 Adapt.@adapt_structure AffExprMatrix
 Adapt.@adapt_structure QuadExprMatrix
 Adapt.@adapt_structure VecAffExprMatrix
 
-(aem::AffExprMatrix)(x) = aem.c'*x + aem.c0
-(qem::QuadExprMatrix)(x) = x'*qem.Q*x + qem.c'*x + qem.c0
-(vaem::VecAffExprMatrix)(x) = vaem.A*x + vaem.b
+(aem::AffExprMatrix)(x) = aem.c' * x + aem.c0
+(qem::QuadExprMatrix)(x) = x' * qem.Q * x + qem.c' * x + qem.c0
+(vaem::VecAffExprMatrix)(x) = vaem.A * x + vaem.b
 
-
-function AffExprMatrix(
-    aff::JuMP.GenericAffExpr{T,V},
-    v::Vector{V};
-    backend = nothing
-) where {T,V}
+function AffExprMatrix(aff::JuMP.GenericAffExpr{T,V}, v::Vector{V}; backend=nothing) where {T,V}
     n = length(v)
     vr_to_idx = _vr_to_idx(v)
 
@@ -43,12 +37,7 @@ function AffExprMatrix(
     return AffExprMatrix(c_backend, c0)
 end
 
-
-function QuadExprMatrix(
-    qexpr::JuMP.GenericQuadExpr{T,V},
-    v::Vector{V};
-    backend = nothing
-) where {T,V}
+function QuadExprMatrix(qexpr::JuMP.GenericQuadExpr{T,V}, v::Vector{V}; backend=nothing) where {T,V}
     quad_terms = JuMP.quad_terms(qexpr)
     nq = length(quad_terms)
     n = length(v)
@@ -78,11 +67,8 @@ function QuadExprMatrix(
     return QuadExprMatrix(Q, c_backend, c0)
 end
 
-
 function VecAffExprMatrix(
-    vaff::Vector{JuMP.GenericAffExpr{T,V}},
-    v::Vector{V};
-    backend = nothing
+    vaff::Vector{JuMP.GenericAffExpr{T,V}}, v::Vector{V}; backend=nothing
 ) where {T,V}
     m = length(vaff)
     n = length(v)
@@ -119,7 +105,7 @@ function VecAffExprMatrix(
 end
 
 function _vr_to_idx(v::V) where {V}
-    vr_to_idx = Dict{eltype(V), Int}()
+    vr_to_idx = Dict{eltype(V),Int}()
     for (i, vr) in enumerate(v)
         vr_to_idx[vr] = i
     end

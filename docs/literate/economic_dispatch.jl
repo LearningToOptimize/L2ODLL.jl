@@ -16,7 +16,7 @@
 # along the way is a valid lower bound on the dispatch cost.
 
 using JuMP, Random, Statistics
-import HiGHS
+using HiGHS: HiGHS
 using L2ODLL
 
 rng = Xoshiro(1)
@@ -25,7 +25,7 @@ cost = sort(10 .+ 40 .* rand(rng, G))
 pmax = 50 .+ 100 .* rand(rng, G)
 
 model = Model()
-@variable(model, 0 <= p[g = 1:G] <= pmax[g])
+@variable(model, 0 <= p[g=1:G] <= pmax[g])
 @variable(model, d in MOI.Parameter(500.0))
 @variable(model, r in MOI.Parameter(50.0))
 @constraint(model, balance, sum(p) == d)
@@ -45,9 +45,11 @@ Ptest = sample_params(rng, 64)
 
 # Reference optima (only to report the gap on the test set):
 
-set_optimizer(model, HiGHS.Optimizer); set_silent(model)
+set_optimizer(model, HiGHS.Optimizer);
+set_silent(model);
 function optimum(model, pv)
-    set_parameter_value(d, pv[1]); set_parameter_value(r, pv[2])
+    set_parameter_value(d, pv[1])
+    set_parameter_value(r, pv[2])
     optimize!(model)
     return objective_value(model)
 end
@@ -58,7 +60,8 @@ opt_test = [optimum(model, Ptest[:, k]) for k in axes(Ptest, 2)]
 # with respect to the prediction for every column.
 
 scale = sum(pmax)
-W = zeros(2, 2); w0 = zeros(2)
+W = zeros(2, 2);
+w0 = zeros(2);
 proxy(W, w0, P) = W * (P ./ scale) .+ w0
 gap(W, w0) = mean((opt_test .- dual_objective(model, proxy(W, w0, Ptest), Ptest)) ./ opt_test)
 
@@ -67,7 +70,7 @@ for epoch in 1:300
     Y = proxy(W, w0, Ptrain)
     _, Gy = dual_objective_and_gradient(model, Y, Ptrain)    # ∂Φ/∂ŷ, 2 × 256
     global W += 0.5 .* Gy * (Ptrain ./ scale)' ./ size(Ptrain, 2) ./ scale
-    global w0 += 0.5 .* vec(mean(Gy; dims = 2)) ./ scale
+    global w0 += 0.5 .* vec(mean(Gy; dims=2)) ./ scale
     push!(history, gap(W, w0))
 end
 history[[1, 10, 100, 300]]
@@ -86,11 +89,11 @@ all(bounds .<= opt_test .+ 1e-6)
 # pipeline, which checks the `ValidDualBound` guarantee independently (its own
 # Lagrangian dual function of the completed duals, against the solver optima):
 
-import L2OCore
+using L2OCore: L2OCore
 problem = L2OCore.ParametricProblem(model)
 pipe = L2OCore.L2OPipeline(problem, DLLMethod())
 pred = L2OCore.complete(pipe, Ptest, proxy(W, w0, Ptest))
-L2OCore.check(L2OCore.ValidDualBound(), problem, Ptest, pred; reference = opt_test)
+L2OCore.check(L2OCore.ValidDualBound(), problem, Ptest, pred; reference=opt_test)
 
 # and its loss is the negated mean bound used above:
 

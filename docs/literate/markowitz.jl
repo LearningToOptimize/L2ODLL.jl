@@ -15,7 +15,7 @@
 # and the bound duals are completed in closed form.
 
 using JuMP, LinearAlgebra, Random
-import Clarabel
+using Clarabel: Clarabel
 using L2ODLL
 
 Σ = [166 34 58; 34 64 4; 58 4 100] / 100^2
@@ -44,7 +44,8 @@ get_y(model), y_shape(model)
 rng = Xoshiro(42)
 pv = [0.1 .* randn(rng, N); 0.1]
 set_parameter_value.([μ; γ], pv)
-set_optimizer(model, Clarabel.Optimizer); set_silent(model)
+set_optimizer(model, Clarabel.Optimizer);
+set_silent(model);
 optimize!(model)
 opt = objective_value(model)
 

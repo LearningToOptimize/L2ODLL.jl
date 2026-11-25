@@ -1,13 +1,13 @@
 module L2ODLL
 
-import Adapt
-import Dualization
-import JuMP
-import LinearAlgebra
-import MathOptSetDistances
-import SparseArrays
-import DifferentiationInterface
-import ForwardDiff
+using Adapt: Adapt
+using Dualization: Dualization
+using JuMP: JuMP
+using LinearAlgebra: LinearAlgebra
+using MathOptSetDistances: MathOptSetDistances
+using SparseArrays: SparseArrays
+using DifferentiationInterface: DifferentiationInterface
+using ForwardDiff: ForwardDiff
 
 const MOI = JuMP.MOI
 const MOIB = JuMP.MOIB
@@ -74,13 +74,14 @@ struct DLLCache
     decomposition::AbstractDecomposition
     completion::Union{Nothing,Function}
 end
-DLLCache(y_proj, dll_layer, dual_model, decomposition) =
-    DLLCache(y_proj, dll_layer, dual_model, decomposition, nothing)
+function DLLCache(y_proj, dll_layer, dual_model, decomposition)
+    return DLLCache(y_proj, dll_layer, dual_model, decomposition, nothing)
+end
 
 const _DECOMPOSITIONS = [ # in order of preference for auto-detection
     BoundDecomposition,
     ConvexQP,
-    GenericDecomposition
+    GenericDecomposition,
 ]
 
 """
@@ -114,7 +115,7 @@ function decompose!(model::JuMP.Model)
             return decompose!(model, decomp(model))
         end
     end
-    error("Could not detect decomposition that guarantees completion feasibility.")
+    return error("Could not detect decomposition that guarantees completion feasibility.")
 end
 
 """
@@ -122,10 +123,17 @@ end
 
 Build the DLL functions using the given decomposition.
 """
-function decompose!(model::JuMP.Model, decomposition::AbstractDecomposition;
-    optimizer=nothing, proj_fn=nothing, dll_layer_builder=nothing, completion_builder=nothing
+function decompose!(
+    model::JuMP.Model,
+    decomposition::AbstractDecomposition;
+    optimizer=nothing,
+    proj_fn=nothing,
+    dll_layer_builder=nothing,
+    completion_builder=nothing,
 )
-    return build_cache(model, decomposition; optimizer, proj_fn, dll_layer_builder, completion_builder)
+    return build_cache(
+        model, decomposition; optimizer, proj_fn, dll_layer_builder, completion_builder
+    )
 end
 
 """
@@ -145,14 +153,17 @@ end
 Evaluate the gradient of the dual objective function with respect to the predicted dual variables.
     This includes both the projection and the completion steps.
 """
-function dual_objective_gradient(model::JuMP.Model, y_predicted, param_value; ad_type::DI.AbstractADType=DI.AutoForwardDiff())
+function dual_objective_gradient(
+    model::JuMP.Model, y_predicted, param_value; ad_type::DI.AbstractADType=DI.AutoForwardDiff()
+)
     cache = get_cache(model)
     y_shape = L2ODLL.y_shape(cache)
     @assert length.(y_predicted) == y_shape
     dobj_wrt_y = DI.gradient(
-        (y,p) -> dual_objective(model, L2ODLL.unflatten_y(y, y_shape), p),
+        (y, p) -> dual_objective(model, L2ODLL.unflatten_y(y, y_shape), p),
         ad_type,
-        L2ODLL.flatten_y(y_predicted), DI.Constant(param_value)
+        L2ODLL.flatten_y(y_predicted),
+        DI.Constant(param_value),
     )
     return L2ODLL.unflatten_y(dobj_wrt_y, y_shape)
 end
@@ -163,14 +174,17 @@ end
 Return `(dual_objective(model, y_predicted, param_value), dual_objective_gradient(model, y_predicted, param_value))`
 computed in one differentiation pass.
 """
-function dual_objective_and_gradient(model::JuMP.Model, y_predicted, param_value; ad_type::DI.AbstractADType=DI.AutoForwardDiff())
+function dual_objective_and_gradient(
+    model::JuMP.Model, y_predicted, param_value; ad_type::DI.AbstractADType=DI.AutoForwardDiff()
+)
     cache = get_cache(model)
     y_shape = L2ODLL.y_shape(cache)
     @assert length.(y_predicted) == y_shape
     val, g = DI.value_and_gradient(
-        (y,p) -> dual_objective(model, L2ODLL.unflatten_y(y, y_shape), p),
+        (y, p) -> dual_objective(model, L2ODLL.unflatten_y(y, y_shape), p),
         ad_type,
-        L2ODLL.flatten_y(y_predicted), DI.Constant(param_value)
+        L2ODLL.flatten_y(y_predicted),
+        DI.Constant(param_value),
     )
     return val, L2ODLL.unflatten_y(g, y_shape)
 end
@@ -182,8 +196,11 @@ end
 
 function _check_batch(model::JuMP.Model, Y::AbstractMatrix, P::AbstractMatrix)
     shape = y_shape(model)
-    size(Y, 1) == (isempty(shape) ? 0 : sum(shape)) ||
-        throw(DimensionMismatch("Y has $(size(Y, 1)) rows, expected sum(y_shape(model)) = $((isempty(shape) ? 0 : sum(shape)))"))
+    size(Y, 1) == (isempty(shape) ? 0 : sum(shape)) || throw(
+        DimensionMismatch(
+            "Y has $(size(Y, 1)) rows, expected sum(y_shape(model)) = $((isempty(shape) ? 0 : sum(shape)))",
+        ),
+    )
     size(Y, 2) == size(P, 2) ||
         throw(DimensionMismatch("Y has $(size(Y, 2)) columns but P has $(size(P, 2))"))
     return shape
@@ -197,7 +214,10 @@ Batched [`dual_objective`](@ref): column `k` of `Y` is a flattened prediction
 """
 function dual_objective(model::JuMP.Model, Y::AbstractMatrix, P::AbstractMatrix)
     shape = _check_batch(model, Y, P)
-    return [dual_objective(model, unflatten_y(collect(Y[:, k]), shape), collect(P[:, k])) for k in axes(Y, 2)]
+    return [
+        dual_objective(model, unflatten_y(collect(Y[:, k]), shape), collect(P[:, k])) for
+        k in axes(Y, 2)
+    ]
 end
 
 """
@@ -206,7 +226,12 @@ end
 Batched [`dual_objective_gradient`](@ref): column `k` of the result is the
 flattened gradient for column `k` of `Y`.
 """
-function dual_objective_gradient(model::JuMP.Model, Y::AbstractMatrix, P::AbstractMatrix; ad_type::DI.AbstractADType=DI.AutoForwardDiff())
+function dual_objective_gradient(
+    model::JuMP.Model,
+    Y::AbstractMatrix,
+    P::AbstractMatrix;
+    ad_type::DI.AbstractADType=DI.AutoForwardDiff(),
+)
     return last(dual_objective_and_gradient(model, Y, P; ad_type))
 end
 
@@ -215,13 +240,20 @@ end
 
 Batched [`dual_objective_and_gradient`](@ref).
 """
-function dual_objective_and_gradient(model::JuMP.Model, Y::AbstractMatrix, P::AbstractMatrix; ad_type::DI.AbstractADType=DI.AutoForwardDiff())
+function dual_objective_and_gradient(
+    model::JuMP.Model,
+    Y::AbstractMatrix,
+    P::AbstractMatrix;
+    ad_type::DI.AbstractADType=DI.AutoForwardDiff(),
+)
     shape = _check_batch(model, Y, P)
     T = float(eltype(Y))
     vals = Vector{T}(undef, size(Y, 2))
     G = similar(Y, T)
     for k in axes(Y, 2)
-        v, g = dual_objective_and_gradient(model, unflatten_y(collect(Y[:, k]), shape), collect(P[:, k]); ad_type)
+        v, g = dual_objective_and_gradient(
+            model, unflatten_y(collect(Y[:, k]), shape), collect(P[:, k]); ad_type
+        )
         vals[k] = v
         G[:, k] .= flatten_y(g)
     end
@@ -239,40 +271,47 @@ Build the DLLCache for the given model and decomposition.
     via `dll_layer_builder` and custom completion builders via
     `completion_builder` (same signature, returning `(y_pred, p) -> (y, z, w)`).
 """
-function build_cache(model::JuMP.Model, decomposition::AbstractDecomposition;
-    optimizer=nothing, proj_fn=nothing, dll_layer_builder=nothing, completion_builder=nothing
+function build_cache(
+    model::JuMP.Model,
+    decomposition::AbstractDecomposition;
+    optimizer=nothing,
+    proj_fn=nothing,
+    dll_layer_builder=nothing,
+    completion_builder=nothing,
 )
-    dual_model = Dualization.dualize(model, consider_constrained_variables=false)
+    dual_model = Dualization.dualize(model; consider_constrained_variables=false)
 
     proj_fn = !isnothing(proj_fn) ? proj_fn : make_proj_fn(decomposition, dual_model)
 
     layers = if !isnothing(dll_layer_builder)
-            nothing  # custom layer: do not build (possibly unsupported) defaults
-        elseif decomposition isa BoundDecomposition
-            _bounded_layers(decomposition, proj_fn, dual_model)
-        elseif decomposition isa ConvexQP
-            _convex_qp_layers(decomposition, proj_fn, dual_model)
-        elseif !isnothing(optimizer)
-            _jump_layers(decomposition, proj_fn, dual_model, optimizer)
-        else
-            nothing
-        end
+        nothing  # custom layer: do not build (possibly unsupported) defaults
+    elseif decomposition isa BoundDecomposition
+        _bounded_layers(decomposition, proj_fn, dual_model)
+    elseif decomposition isa ConvexQP
+        _convex_qp_layers(decomposition, proj_fn, dual_model)
+    elseif !isnothing(optimizer)
+        _jump_layers(decomposition, proj_fn, dual_model, optimizer)
+    else
+        nothing
+    end
 
     dll_layer = if !isnothing(dll_layer_builder)
-            dll_layer_builder(decomposition, proj_fn, dual_model)
-        elseif !isnothing(layers)
-            layers.objective
-        else
-            error("A $(nameof(typeof(decomposition))) has no closed-form completion; pass `optimizer` or `dll_layer_builder`.")
-        end
+        dll_layer_builder(decomposition, proj_fn, dual_model)
+    elseif !isnothing(layers)
+        layers.objective
+    else
+        error(
+            "A $(nameof(typeof(decomposition))) has no closed-form completion; pass `optimizer` or `dll_layer_builder`.",
+        )
+    end
 
     completion = if !isnothing(completion_builder)
-            completion_builder(decomposition, proj_fn, dual_model)
-        elseif !isnothing(layers)
-            layers.completion
-        else
-            nothing  # a custom layer without a matching completion
-        end
+        completion_builder(decomposition, proj_fn, dual_model)
+    elseif !isnothing(layers)
+        layers.completion
+    else
+        nothing  # a custom layer without a matching completion
+    end
 
     cache = DLLCache(proj_fn, dll_layer, dual_model, decomposition, completion)
     model.ext[:_L2ODLL_cache] = cache
@@ -385,7 +424,7 @@ end
 
 Unflatten a vector of flattened `y` variables into a vector of vectors, i.e. Vector{Float64} -> Vector{Vector{Float64}}.
 """
-function unflatten_y(y::Vector{T}, y_shape::Vector{Int}) where T
+function unflatten_y(y::Vector{T}, y_shape::Vector{Int}) where {T}
     # Non-mutating so that reverse-mode AD (e.g. Zygote) can differentiate through it.
     # (`cumsum` is avoided as well: its reverse rule fails on integer arguments.)
     return map(eachindex(y_shape)) do i
@@ -397,7 +436,10 @@ end
 function __init__()
     Base.Experimental.register_error_hint(MethodError) do io, exc, _, _
         if exc.f === DLLMethod
-            print(io, "\n`L2ODLL.DLLMethod` is defined by a package extension; run `import L2OCore` first.")
+            print(
+                io,
+                "\n`L2ODLL.DLLMethod` is defined by a package extension; run `import L2OCore` first.",
+            )
         end
     end
     return nothing

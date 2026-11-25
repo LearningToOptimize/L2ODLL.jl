@@ -13,7 +13,7 @@ function ConvexQP(model::JuMP.Model)
     p_ref = filter(JuMP.is_parameter, JuMP.all_variables(model))
     y_ref = filter(
         cr -> !(typeof(JuMP.index(cr)).parameters[2] <: MOI.Parameter),
-        JuMP.all_constraints(model, include_variable_in_set_constraints=true)
+        JuMP.all_constraints(model; include_variable_in_set_constraints=true),
     )
     x_ref = filter(!JuMP.is_parameter, JuMP.all_variables(model))
     return ConvexQP(p_ref, y_ref, x_ref)
@@ -43,7 +43,7 @@ involving parameters are excluded): for `f(x) = ½ xᵀHx + …`, returns `H`.
 """
 function objective_hessian(
     model::JuMP.Model,
-    x_ref::AbstractVector{JuMP.VariableRef} = filter(!JuMP.is_parameter, JuMP.all_variables(model)),
+    x_ref::AbstractVector{JuMP.VariableRef}=filter(!JuMP.is_parameter, JuMP.all_variables(model)),
 )
     n = length(x_ref)
     H = zeros(n, n)
@@ -101,13 +101,15 @@ equations for `w` given `y`. With Dualization's sign convention `w` equals the
 minimizer of the Lagrangian, `x(y) = Q⁻¹(Aᵀy - c)`, so `w` is the primal optimum
 when `y` is dual optimal.
 """
-function convex_qp_completion_builder(decomposition::ConvexQP, proj_fn, dual_model::JuMP.Model; kwargs...)
+function convex_qp_completion_builder(
+    decomposition::ConvexQP, proj_fn, dual_model::JuMP.Model; kwargs...
+)
     return _convex_qp_layers(decomposition, proj_fn, dual_model; kwargs...).completion
 end
 
-function _convex_qp_layers(decomposition::ConvexQP, proj_fn, dual_model::JuMP.Model;
-    backend=nothing
-    )
+function _convex_qp_layers(
+    decomposition::ConvexQP, proj_fn, dual_model::JuMP.Model; backend=nothing
+)
     if !isempty(decomposition.x_ref)
         primal = JuMP.owner_model(first(decomposition.x_ref))
         is_strictly_convex_objective(primal) || error(
@@ -121,13 +123,13 @@ function _convex_qp_layers(decomposition::ConvexQP, proj_fn, dual_model::JuMP.Mo
     x_vars = get_x(decomposition)
     if !all(x -> has_quadslack(dual_model, x), x_vars)
         @warn "Some primal variables do not have a quadratic objective term, " *
-               "so they do not have a quadratic slack variable in the dual." *
-               "There may not be enough flexibility in the completion model to guarantee feasibility."
+            "so they do not have a quadratic slack variable in the dual." *
+            "There may not be enough flexibility in the completion model to guarantee feasibility."
     end
     z_vars = get_quadslack(dual_model, decomposition)
     types = filter(
         t -> !(t[1] <: JuMP.VariableRef || t[1] <: Vector{JuMP.VariableRef}),
-        JuMP.list_of_constraint_types(dual_model)
+        JuMP.list_of_constraint_types(dual_model),
     )
 
     Q = zeros(length(z_vars), length(z_vars))
@@ -157,16 +159,10 @@ function _convex_qp_layers(decomposition::ConvexQP, proj_fn, dual_model::JuMP.Mo
 
     Qinv = inv(Q)
 
-    Qz_fn = VecAffExprMatrix(
-        Qz,
-        [flatten_y(y_vars); p_vars];
-        backend=backend
-    )
+    Qz_fn = VecAffExprMatrix(Qz, [flatten_y(y_vars); p_vars]; backend=backend)
 
     obj_fn = QuadExprMatrix(
-        JuMP.objective_function(dual_model),
-        [flatten_y(y_vars); p_vars; z_vars];
-        backend=backend
+        JuMP.objective_function(dual_model), [flatten_y(y_vars); p_vars; z_vars]; backend=backend
     )
 
     # Dualization writes the stationarity condition as Aᵀy + Q_d z = c, where Q_d is
@@ -184,16 +180,16 @@ function _convex_qp_layers(decomposition::ConvexQP, proj_fn, dual_model::JuMP.Mo
     end
     completion_fn = (y_pred, param_value) -> begin
         y_pred_proj, z = complete_fn(y_pred, param_value)
-        return (y = y_pred_proj, z = Vector{typeof(z)}(), w = z)
+        return (y=y_pred_proj, z=Vector{typeof(z)}(), w=z)
     end
-    return (objective = objective, completion = completion_fn)
+    return (objective=objective, completion=completion_fn)
 end
 
 completed_constraints(::ConvexQP) = JuMP.ConstraintRef[]
 
 function get_quadslack(dual_model, decomposition::ConvexQP)
-    return Dualization._get_dual_slack_variable.(dual_model,
-        filter(x -> has_quadslack(dual_model, x), decomposition.x_ref)
+    return Dualization._get_dual_slack_variable.(
+        dual_model, filter(x -> has_quadslack(dual_model, x), decomposition.x_ref)
     )
 end
 

@@ -1,11 +1,15 @@
 using L2ODLL
 using Test
 
-import JuMP, Dualization, ParametricOptInterface
-import Clarabel, HiGHS
-import DifferentiationInterface, ForwardDiff
-import LinearAlgebra
-import Random
+using JuMP: JuMP
+using Dualization: Dualization
+using ParametricOptInterface: ParametricOptInterface
+using Clarabel: Clarabel
+using HiGHS: HiGHS
+using DifferentiationInterface: DifferentiationInterface
+using ForwardDiff: ForwardDiff
+using LinearAlgebra: LinearAlgebra
+using Random: Random
 
 const MOI = JuMP.MOI
 

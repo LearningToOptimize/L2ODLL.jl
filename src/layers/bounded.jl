@@ -13,7 +13,7 @@ Create a decomposition using `z` for bound constraints and `y` for all other con
 function BoundDecomposition(model::JuMP.Model)
     p_ref = filter(JuMP.is_parameter, JuMP.all_variables(model))
     x_ref = filter(!JuMP.is_parameter, JuMP.all_variables(model))
-    y_ref = JuMP.all_constraints(model, include_variable_in_set_constraints=false)
+    y_ref = JuMP.all_constraints(model; include_variable_in_set_constraints=false)
     zl_ref = JuMP.LowerBoundRef.(x_ref)
     zu_ref = JuMP.UpperBoundRef.(x_ref)
     return BoundDecomposition(p_ref, y_ref, zl_ref, zu_ref)
@@ -42,7 +42,9 @@ Closed-form DLL layer `(y_pred, param_value) -> dual objective` for the bounded
 decomposition (Example 1 of Tanneau and Van Hentenryck, 2024). See
 [`bounded_completion_builder`](@ref) for the completed dual variables.
 """
-function bounded_builder(decomposition::BoundDecomposition, proj_fn, dual_model::JuMP.Model; kwargs...)
+function bounded_builder(
+    decomposition::BoundDecomposition, proj_fn, dual_model::JuMP.Model; kwargs...
+)
     return _bounded_layers(decomposition, proj_fn, dual_model; kwargs...).objective
 end
 
@@ -53,18 +55,27 @@ Closed-form completion `(y_pred, param_value) -> (y, z, w)` for the bounded
 decomposition: `y` is the projected prediction, `z = [[zl_1], …, [zl_n], [zu_1], …, [zu_n]]`
 are the bound duals (in the order of [`completed_constraints`](@ref)) and `w` is empty.
 """
-function bounded_completion_builder(decomposition::BoundDecomposition, proj_fn, dual_model::JuMP.Model; kwargs...)
+function bounded_completion_builder(
+    decomposition::BoundDecomposition, proj_fn, dual_model::JuMP.Model; kwargs...
+)
     return _bounded_layers(decomposition, proj_fn, dual_model; kwargs...).completion
 end
 
-function _bounded_layers(decomposition::BoundDecomposition, proj_fn, dual_model::JuMP.Model;
-    completion=:exact, μ=1.0, backend=nothing
+function _bounded_layers(
+    decomposition::BoundDecomposition,
+    proj_fn,
+    dual_model::JuMP.Model;
+    completion=:exact,
+    μ=1.0,
+    backend=nothing,
+)
+    if !isempty(
+        dual_model.ext[:_Dualization_jl_PrimalDualMap].primal_var_in_quad_obj_to_dual_slack_var
     )
-    if !isempty(dual_model.ext[:_Dualization_jl_PrimalDualMap].primal_var_in_quad_obj_to_dual_slack_var)
         error(
             "The closed-form BoundDecomposition layer requires an objective that is affine " *
             "in the decision variables. For convex quadratic objectives use `ConvexQP`, or a " *
-            "`GenericDecomposition` with an optimizer (see the decomposition detection docs)."
+            "`GenericDecomposition` with an optimizer (see the decomposition detection docs).",
         )
     end
     p_vars = get_p(dual_model, decomposition)
@@ -73,7 +84,7 @@ function _bounded_layers(decomposition::BoundDecomposition, proj_fn, dual_model:
     zu_vars = only.(get_zu(dual_model, decomposition))
     types = filter(
         t -> !(t[1] <: JuMP.VariableRef || t[1] <: Vector{JuMP.VariableRef}),
-        JuMP.list_of_constraint_types(dual_model)
+        JuMP.list_of_constraint_types(dual_model),
     )
 
     zl_plus_zu = [zero(JuMP.AffExpr) for _ in 1:length(zl_vars)]  # not `zeros`: it aliases one mutable AffExpr (#13)
@@ -94,7 +105,8 @@ function _bounded_layers(decomposition::BoundDecomposition, proj_fn, dual_model:
                 @assert co.func.terms[zl_vars[zl_idx]] == 1 && co.func.terms[zu_vars[zu_idx]] == 1
 
                 # from A'y + zl + zu = c to zl + zu = c - A'y
-                zl_plus_zu[zl_idx] = co.set.value - JuMP.value(vr -> (vr ∈ zl_vars || vr ∈ zu_vars) ? 0 : vr, cr)
+                zl_plus_zu[zl_idx] =
+                    co.set.value - JuMP.value(vr -> (vr ∈ zl_vars || vr ∈ zu_vars) ? 0 : vr, cr)
                 delete!(idx_left, zl_idx)
             end
         else
@@ -108,44 +120,42 @@ function _bounded_layers(decomposition::BoundDecomposition, proj_fn, dual_model:
     completer = if completion == :exact
         ExactBoundedCompletion()
     elseif completion == :log
-        l = getfield.(getfield.(JuMP.constraint_object.(decomposition.zl_ref), :set), :lower)
-        u = getfield.(getfield.(JuMP.constraint_object.(decomposition.zu_ref), :set), :upper)
+        l = Float64[JuMP.constraint_object(c).set.lower for c in decomposition.zl_ref]
+        u = Float64[JuMP.constraint_object(c).set.upper for c in decomposition.zu_ref]
         # eq. (7) of Klamkin, Tanneau and Van Hentenryck uses v = μ / (u - l): needs l < u, μ > 0
         all(u .> l) || error("The log-barrier completion requires l < u for every variable.")
-        μ > 0 || error("The log-barrier completion requires μ > 0; use completion = :exact for μ = 0.")
+        μ > 0 || error(
+            "The log-barrier completion requires μ > 0; use completion = :exact for μ = 0."
+        )
         LogBoundedCompletion(μ, l, u)
     else
         error("Invalid completion type: $completion. Must be :exact or :log.")
     end
 
-    z_fn = VecAffExprMatrix(
-        zl_plus_zu,
-        [flatten_y(y_vars); p_vars];
-        backend=backend
-    )
+    z_fn = VecAffExprMatrix(zl_plus_zu, [flatten_y(y_vars); p_vars]; backend=backend)
     obj_fn = QuadExprMatrix(
-        obj_func,
-        [flatten_y(y_vars); p_vars; zl_vars; zu_vars];
-        backend=backend
+        obj_func, [flatten_y(y_vars); p_vars; zl_vars; zu_vars]; backend=backend
     )
     # z^l + z^u = c - Aᵀy (L2ODLL sign convention: z^u ≤ 0), then the closed form
     # of Example 1 in Tanneau and Van Hentenryck (2024) (`:exact`) or eq. (7) of
     # Klamkin, Tanneau and Van Hentenryck (2025) (`:log`).
-    complete_fn = (y_pred, param_value) -> begin
-        y_pred_proj = proj_fn(y_pred)
-        zl_plus_zu_val = z_fn([flatten_y(y_pred_proj); param_value])
-        zl, zu = complete_zlzu(completer, zl_plus_zu_val)
-        return y_pred_proj, zl, zu
-    end
+    complete_fn =
+        (y_pred, param_value) -> begin
+            y_pred_proj = proj_fn(y_pred)
+            zl_plus_zu_val = z_fn([flatten_y(y_pred_proj); param_value])
+            zl, zu = complete_zlzu(completer, zl_plus_zu_val)
+            return y_pred_proj, zl, zu
+        end
     objective = (y_pred, param_value) -> begin
         y_pred_proj, zl, zu = complete_fn(y_pred, param_value)
         obj_fn([flatten_y(y_pred_proj); param_value; zl; zu])
     end
-    completion_fn = (y_pred, param_value) -> begin
-        y_pred_proj, zl, zu = complete_fn(y_pred, param_value)
-        return (y = y_pred_proj, z = [[[v] for v in zl]; [[v] for v in zu]], w = zl[1:0])
-    end
-    return (objective = objective, completion = completion_fn)
+    completion_fn =
+        (y_pred, param_value) -> begin
+            y_pred_proj, zl, zu = complete_fn(y_pred, param_value)
+            return (y=y_pred_proj, z=[[[v] for v in zl]; [[v] for v in zu]], w=zl[1:0])
+        end
+    return (objective=objective, completion=completion_fn)
 end
 
 function _find_and_return_value(vr, var_lists, values)
@@ -153,7 +163,7 @@ function _find_and_return_value(vr, var_lists, values)
         idx = findfirst(_vr -> _vr == vr, vars)
         !isnothing(idx) && return val[idx]
     end
-    error("Variable $vr not found in any variable list")
+    return error("Variable $vr not found in any variable list")
 end
 
 abstract type BoundedCompletion end
@@ -172,15 +182,16 @@ function complete_zlzu(c::LogBoundedCompletion{V,T}, zl_plus_zu) where {V,T}
     v = c.μ ./ (c.u - c.l)
     w = T(1//2) .* zl_plus_zu
     sqrtv2w2 = hypot.(v, w)
-    return (
-        v + w + sqrtv2w2,
-        -v + w - sqrtv2w2,
-    )
+    return (v + w + sqrtv2w2, -v + w - sqrtv2w2)
 end
 
-function make_completion_model(decomposition::BoundDecomposition, dual_model::JuMP.Model; log_barrier=false, conic=true)
+function make_completion_model(
+    decomposition::BoundDecomposition, dual_model::JuMP.Model; log_barrier=false, conic=true
+)
     if log_barrier
-        completion_model, (p_ref, y_ref, ref_map) = _make_completion_model(decomposition, dual_model)
+        completion_model, (p_ref, y_ref, ref_map) = _make_completion_model(
+            decomposition, dual_model
+        )
         zl = getindex.(ref_map, get_zl(dual_model, decomposition))
         zu = getindex.(ref_map, get_zu(dual_model, decomposition))
         # TODO: add exponential cone constraints and objective terms
@@ -192,8 +203,9 @@ function make_completion_model(decomposition::BoundDecomposition, dual_model::Ju
     end
 end
 
-completed_constraints(decomposition::BoundDecomposition) =
-    JuMP.ConstraintRef[decomposition.zl_ref; decomposition.zu_ref]
+function completed_constraints(decomposition::BoundDecomposition)
+    return JuMP.ConstraintRef[decomposition.zl_ref; decomposition.zu_ref]
+end
 
 function get_zl(dual_model, decomposition::BoundDecomposition)
     return only.(Dualization._get_dual_variables.(dual_model, decomposition.zl_ref))
