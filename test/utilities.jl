@@ -21,7 +21,7 @@
         @test single_unflat == single_vec
         
         empty_vec = Vector{Float64}[]
-        @test_throws ArgumentError("reducing over an empty collection is not allowed; consider supplying `init` to the reducer") L2ODLL.flatten_y(empty_vec)
+        @test_throws Union{ArgumentError,MethodError} L2ODLL.flatten_y(empty_vec)  # MethodError on Julia 1.10
         
         empty_flat = Float64[]
         empty_unflat = L2ODLL.unflatten_y(empty_flat, Int[])

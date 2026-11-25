@@ -7,7 +7,9 @@ import JET
 
 @testset "QA" begin
     @testset "Aqua" begin
-        Aqua.test_all(L2ODLL)
+        # On Julia 1.10, CI adds the unregistered weak dependency L2OCore to [deps]
+        # (1.10 ignores [sources]), which Aqua would report as stale.
+        Aqua.test_all(L2ODLL; stale_deps = (ignore = [:L2OCore],))
     end
 
     @testset "ExplicitImports" begin
