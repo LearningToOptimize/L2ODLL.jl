@@ -1,4 +1,5 @@
 using Documenter
+using DocumenterMermaid
 using Literate
 using L2ODLL
 using L2OCore: L2OCore  # loads the extension, so its docstrings are included
@@ -23,7 +24,6 @@ makedocs(;
     authors="LearningToOptimize contributors",
     doctest=true,
     checkdocs=:exports,
-    warnonly=[:cross_references],
     format=Documenter.HTML(;
         prettyurls=get(ENV, "CI", nothing) == "true",
         canonical="https://learningtooptimize.github.io/L2ODLL.jl",
