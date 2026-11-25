@@ -104,6 +104,77 @@ function dual_objective_gradient(model::JuMP.Model, y_predicted, param_value; ad
 end
 
 """
+    dual_objective_and_gradient(model::JuMP.Model, y_predicted, param_value; ad_type=DI.AutoForwardDiff())
+
+Return `(dual_objective(model, y_predicted, param_value), dual_objective_gradient(model, y_predicted, param_value))`
+computed in one differentiation pass.
+"""
+function dual_objective_and_gradient(model::JuMP.Model, y_predicted, param_value; ad_type::ADTypes.AbstractADType=DI.AutoForwardDiff())
+    cache = get_cache(model)
+    y_shape = L2ODLL.y_shape(cache)
+    @assert length.(y_predicted) == y_shape
+    val, g = DI.value_and_gradient(
+        (y,p) -> dual_objective(model, L2ODLL.unflatten_y(y, y_shape), p),
+        ad_type,
+        L2ODLL.flatten_y(y_predicted), DI.Constant(param_value)
+    )
+    return val, L2ODLL.unflatten_y(g, y_shape)
+end
+
+# ---------------------------------------------------------------------------
+# Batched (matrix) forms: the batch is the last dimension.
+#   Y :: (sum(y_shape(model)) × B) flattened predictions, P :: (num_parameters × B)
+# ---------------------------------------------------------------------------
+
+function _check_batch(model::JuMP.Model, Y::AbstractMatrix, P::AbstractMatrix)
+    shape = y_shape(model)
+    size(Y, 1) == sum(shape; init=0) ||
+        throw(DimensionMismatch("Y has $(size(Y, 1)) rows, expected sum(y_shape(model)) = $(sum(shape; init=0))"))
+    size(Y, 2) == size(P, 2) ||
+        throw(DimensionMismatch("Y has $(size(Y, 2)) columns but P has $(size(P, 2))"))
+    return shape
+end
+
+"""
+    dual_objective(model::JuMP.Model, Y::AbstractMatrix, P::AbstractMatrix) -> Vector
+
+Batched [`dual_objective`](@ref): column `k` of `Y` is a flattened prediction
+(see [`flatten_y`](@ref)) and column `k` of `P` the matching parameter values.
+"""
+function dual_objective(model::JuMP.Model, Y::AbstractMatrix, P::AbstractMatrix)
+    shape = _check_batch(model, Y, P)
+    return [dual_objective(model, unflatten_y(collect(Y[:, k]), shape), collect(P[:, k])) for k in axes(Y, 2)]
+end
+
+"""
+    dual_objective_gradient(model::JuMP.Model, Y::AbstractMatrix, P::AbstractMatrix; ad_type=DI.AutoForwardDiff()) -> Matrix
+
+Batched [`dual_objective_gradient`](@ref): column `k` of the result is the
+flattened gradient for column `k` of `Y`.
+"""
+function dual_objective_gradient(model::JuMP.Model, Y::AbstractMatrix, P::AbstractMatrix; ad_type::ADTypes.AbstractADType=DI.AutoForwardDiff())
+    return last(dual_objective_and_gradient(model, Y, P; ad_type))
+end
+
+"""
+    dual_objective_and_gradient(model::JuMP.Model, Y::AbstractMatrix, P::AbstractMatrix; ad_type=DI.AutoForwardDiff()) -> (Vector, Matrix)
+
+Batched [`dual_objective_and_gradient`](@ref).
+"""
+function dual_objective_and_gradient(model::JuMP.Model, Y::AbstractMatrix, P::AbstractMatrix; ad_type::ADTypes.AbstractADType=DI.AutoForwardDiff())
+    shape = _check_batch(model, Y, P)
+    T = float(eltype(Y))
+    vals = Vector{T}(undef, size(Y, 2))
+    G = similar(Y, T)
+    for k in axes(Y, 2)
+        v, g = dual_objective_and_gradient(model, unflatten_y(collect(Y[:, k]), shape), collect(P[:, k]); ad_type)
+        vals[k] = v
+        G[:, k] .= flatten_y(g)
+    end
+    return vals, G
+end
+
+"""
     build_cache(model::JuMP.Model, decomposition::AbstractDecomposition;
         optimizer=nothing, proj_fn=nothing, dll_layer_builder=nothing, completion_builder=nothing
     )
@@ -261,13 +332,9 @@ end
 Unflatten a vector of flattened `y` variables into a vector of vectors, i.e. Vector{Float64} -> Vector{Vector{Float64}}.
 """
 function unflatten_y(y::Vector{T}, y_shape::Vector{Int}) where T
-    result = Vector{T}[]
-    start_idx = 1
-    for shape in y_shape
-        push!(result, y[start_idx:start_idx + shape - 1])
-        start_idx += shape
-    end
-    return result
+    # Non-mutating so that reverse-mode AD (e.g. Zygote) can differentiate through it.
+    stops = cumsum(y_shape)
+    return Vector{T}[y[(stop - len + 1):stop] for (len, stop) in zip(y_shape, stops)]
 end
 
 end  # module
