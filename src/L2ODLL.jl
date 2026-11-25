@@ -24,12 +24,24 @@ include("layers/bounded.jl")
 include("layers/convex_qp.jl")
 include("projection.jl")
 
+"""
+    DLLCache
+
+Everything [`decompose!`](@ref) builds for a model: the projection `y_proj`, the
+DLL layer `dll_layer(y_pred, param_value) -> dual objective`, the
+`completion(y_pred, param_value) -> (y, z, w)` (or `nothing` when a custom
+`dll_layer_builder` is given without a `completion_builder`), the dual model and
+the decomposition.
+"""
 struct DLLCache
     y_proj::Function
     dll_layer::Function
     dual_model::JuMP.Model
     decomposition::AbstractDecomposition
+    completion::Union{Nothing,Function}
 end
+DLLCache(y_proj, dll_layer, dual_model, decomposition) =
+    DLLCache(y_proj, dll_layer, dual_model, decomposition, nothing)
 
 const _DECOMPOSITIONS = [ # in order of preference for auto-detection
     BoundDecomposition,
@@ -57,9 +69,9 @@ end
 Build the DLL functions using the given decomposition.
 """
 function decompose!(model::JuMP.Model, decomposition::AbstractDecomposition;
-    optimizer=nothing, proj_fn=nothing, dll_layer_builder=nothing
+    optimizer=nothing, proj_fn=nothing, dll_layer_builder=nothing, completion_builder=nothing
 )
-    return build_cache(model, decomposition; optimizer, proj_fn, dll_layer_builder)
+    return build_cache(model, decomposition; optimizer, proj_fn, dll_layer_builder, completion_builder)
 end
 
 """
@@ -93,32 +105,51 @@ end
 
 """
     build_cache(model::JuMP.Model, decomposition::AbstractDecomposition;
-        optimizer=nothing, proj_fn=nothing, dll_layer_builder=nothing
+        optimizer=nothing, proj_fn=nothing, dll_layer_builder=nothing, completion_builder=nothing
     )
 
 Build the DLLCache for the given model and decomposition.
     In this lower-level function (compared to `decompose!`), users can set
-    custom projection functions via `proj_fn` and custom DLL layer builders
-    via `dll_layer_builder`.
+    custom projection functions via `proj_fn`, custom DLL layer builders
+    via `dll_layer_builder` and custom completion builders via
+    `completion_builder` (same signature, returning `(y_pred, p) -> (y, z, w)`).
 """
 function build_cache(model::JuMP.Model, decomposition::AbstractDecomposition;
-    optimizer=nothing, proj_fn=nothing, dll_layer_builder=nothing
+    optimizer=nothing, proj_fn=nothing, dll_layer_builder=nothing, completion_builder=nothing
 )
     dual_model = Dualization.dualize(model, consider_constrained_variables=false)
 
     proj_fn = !isnothing(proj_fn) ? proj_fn : make_proj_fn(decomposition, dual_model)
 
-    dll_layer = if !isnothing(dll_layer_builder)
-            dll_layer_builder(decomposition, proj_fn, dual_model)
+    layers = if !isnothing(dll_layer_builder)
+            nothing  # custom layer: do not build (possibly unsupported) defaults
         elseif decomposition isa BoundDecomposition
-            bounded_builder(decomposition, proj_fn, dual_model)
+            _bounded_layers(decomposition, proj_fn, dual_model)
         elseif decomposition isa ConvexQP
-            convex_qp_builder(decomposition, proj_fn, dual_model)
+            _convex_qp_layers(decomposition, proj_fn, dual_model)
+        elseif !isnothing(optimizer)
+            _jump_layers(decomposition, proj_fn, dual_model, optimizer)
         else
-            jump_builder(decomposition, proj_fn, dual_model, optimizer)
+            nothing
         end
 
-    cache = DLLCache(proj_fn, dll_layer, dual_model, decomposition)
+    dll_layer = if !isnothing(dll_layer_builder)
+            dll_layer_builder(decomposition, proj_fn, dual_model)
+        elseif !isnothing(layers)
+            layers.objective
+        else
+            error("A $(nameof(typeof(decomposition))) has no closed-form completion; pass `optimizer` or `dll_layer_builder`.")
+        end
+
+    completion = if !isnothing(completion_builder)
+            completion_builder(decomposition, proj_fn, dual_model)
+        elseif !isnothing(layers)
+            layers.completion
+        else
+            nothing  # a custom layer without a matching completion
+        end
+
+    cache = DLLCache(proj_fn, dll_layer, dual_model, decomposition, completion)
     model.ext[:_L2ODLL_cache] = cache
     return cache
 end
@@ -133,6 +164,39 @@ function get_cache(model::JuMP.Model)
         error("No decomposition found. Please run L2ODLL.decompose! first.")
     end
     return model.ext[:_L2ODLL_cache]
+end
+
+"""
+    dual_completion(model::JuMP.Model, y_predicted, param_value) -> (y, z, w)
+
+Project the predicted `y` onto its dual cone and complete the remaining dual
+variables, returning a `NamedTuple`:
+
+  - `y`: projected predictions, one vector per constraint in [`get_y`](@ref);
+  - `z`: completed dual variables, one vector per constraint in [`get_z`](@ref);
+  - `w`: quadratic slack variables of the dual (empty for affine objectives).
+
+Signs follow `JuMP.dual`. **Guarantee** (Theorem 1 of Tanneau and Van Hentenryck,
+2024): when the decomposition's completion is feasible, `(y, z, w)` is dual
+feasible, so [`dual_objective`](@ref) is a valid bound on the optimal value.
+"""
+function dual_completion(model::JuMP.Model, y_predicted, param_value)
+    cache = get_cache(model)
+    @assert length.(y_predicted) == L2ODLL.y_shape(cache)
+    isnothing(cache.completion) && error(
+        "No completion available: the cache was built with a custom `dll_layer_builder`; " *
+        "also pass `completion_builder` to `decompose!`.",
+    )
+    return cache.completion(y_predicted, param_value)
+end
+
+"""
+    get_z(model::JuMP.Model)
+
+Get the primal constraints whose dual variables (`z`) are completed rather than predicted.
+"""
+function get_z(model::JuMP.Model)
+    return completed_constraints(get_cache(model).decomposition)
 end
 
 """

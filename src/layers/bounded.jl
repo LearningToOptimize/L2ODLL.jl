@@ -35,7 +35,29 @@ function _has_quadratic_decision_terms(f::JuMP.GenericQuadExpr)
     return any(((_, a, b),) -> !JuMP.is_parameter(a) && !JuMP.is_parameter(b), JuMP.quad_terms(f))
 end
 
-function bounded_builder(decomposition::BoundDecomposition, proj_fn, dual_model::JuMP.Model;
+"""
+    bounded_builder(decomposition::BoundDecomposition, proj_fn, dual_model; completion=:exact, μ=1.0, backend=nothing)
+
+Closed-form DLL layer `(y_pred, param_value) -> dual objective` for the bounded
+decomposition (Example 1 of Tanneau and Van Hentenryck, 2024). See
+[`bounded_completion_builder`](@ref) for the completed dual variables.
+"""
+function bounded_builder(decomposition::BoundDecomposition, proj_fn, dual_model::JuMP.Model; kwargs...)
+    return _bounded_layers(decomposition, proj_fn, dual_model; kwargs...).objective
+end
+
+"""
+    bounded_completion_builder(decomposition::BoundDecomposition, proj_fn, dual_model; completion=:exact, μ=1.0, backend=nothing)
+
+Closed-form completion `(y_pred, param_value) -> (y, z, w)` for the bounded
+decomposition: `y` is the projected prediction, `z = [[zl_1], …, [zl_n], [zu_1], …, [zu_n]]`
+are the bound duals (in the order of [`completed_constraints`](@ref)) and `w` is empty.
+"""
+function bounded_completion_builder(decomposition::BoundDecomposition, proj_fn, dual_model::JuMP.Model; kwargs...)
+    return _bounded_layers(decomposition, proj_fn, dual_model; kwargs...).completion
+end
+
+function _bounded_layers(decomposition::BoundDecomposition, proj_fn, dual_model::JuMP.Model;
     completion=:exact, μ=1.0, backend=nothing
     )
     if !isempty(dual_model.ext[:_Dualization_jl_PrimalDualMap].primal_var_in_quad_obj_to_dual_slack_var)
@@ -103,15 +125,24 @@ function bounded_builder(decomposition::BoundDecomposition, proj_fn, dual_model:
         [flatten_y(y_vars); p_vars; zl_vars; zu_vars];
         backend=backend
     )
-    return (y_pred, param_value) -> begin
+    # z^l + z^u = c - Aᵀy (L2ODLL sign convention: z^u ≤ 0), then the closed form
+    # of Example 1 in Tanneau and Van Hentenryck (2024) (`:exact`) or eq. (7) of
+    # Klamkin, Tanneau and Van Hentenryck (2025) (`:log`).
+    complete_fn = (y_pred, param_value) -> begin
         y_pred_proj = proj_fn(y_pred)
-
         zl_plus_zu_val = z_fn([flatten_y(y_pred_proj); param_value])
-
         zl, zu = complete_zlzu(completer, zl_plus_zu_val)
-
+        return y_pred_proj, zl, zu
+    end
+    objective = (y_pred, param_value) -> begin
+        y_pred_proj, zl, zu = complete_fn(y_pred, param_value)
         obj_fn([flatten_y(y_pred_proj); param_value; zl; zu])
     end
+    completion_fn = (y_pred, param_value) -> begin
+        y_pred_proj, zl, zu = complete_fn(y_pred, param_value)
+        return (y = y_pred_proj, z = [[[v] for v in zl]; [[v] for v in zu]], w = zl[1:0])
+    end
+    return (objective = objective, completion = completion_fn)
 end
 
 function _find_and_return_value(vr, var_lists, values)
@@ -157,6 +188,9 @@ function make_completion_model(decomposition::BoundDecomposition, dual_model::Ju
         return _make_completion_model(decomposition, dual_model)
     end
 end
+
+completed_constraints(decomposition::BoundDecomposition) =
+    JuMP.ConstraintRef[decomposition.zl_ref; decomposition.zu_ref]
 
 function get_zl(dual_model, decomposition::BoundDecomposition)
     return only.(Dualization._get_dual_variables.(dual_model, decomposition.zl_ref))

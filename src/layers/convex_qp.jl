@@ -33,7 +33,30 @@ function can_decompose(model::JuMP.Model, ::Type{ConvexQP})
     return true
 end
 
-function convex_qp_builder(decomposition::ConvexQP, proj_fn, dual_model::JuMP.Model;
+"""
+    convex_qp_builder(decomposition::ConvexQP, proj_fn, dual_model; backend=nothing)
+
+Closed-form DLL layer `(y_pred, param_value) -> dual objective` for a strictly
+convex quadratic objective (Example 3 of Tanneau and Van Hentenryck, 2024). See
+[`convex_qp_completion_builder`](@ref) for the completed dual variables.
+"""
+function convex_qp_builder(decomposition::ConvexQP, proj_fn, dual_model::JuMP.Model; kwargs...)
+    return _convex_qp_layers(decomposition, proj_fn, dual_model; kwargs...).objective
+end
+
+"""
+    convex_qp_completion_builder(decomposition::ConvexQP, proj_fn, dual_model; backend=nothing)
+
+Closed-form completion `(y_pred, param_value) -> (y, z, w)`: `y` is the projected
+prediction (all constraints are predicted, so `z` is empty) and `w` are the
+quadratic slack variables of the dual, obtained by solving the dual stationarity
+equations for `w` given `y`.
+"""
+function convex_qp_completion_builder(decomposition::ConvexQP, proj_fn, dual_model::JuMP.Model; kwargs...)
+    return _convex_qp_layers(decomposition, proj_fn, dual_model; kwargs...).completion
+end
+
+function _convex_qp_layers(decomposition::ConvexQP, proj_fn, dual_model::JuMP.Model;
     backend=nothing
     )
     p_vars = get_p(dual_model, decomposition)
@@ -89,16 +112,25 @@ function convex_qp_builder(decomposition::ConvexQP, proj_fn, dual_model::JuMP.Mo
         backend=backend
     )
 
-    return (y_pred, param_value) -> begin
+    # From Aᵀy + Qz = c (Dualization's form of the stationarity condition) to
+    # z = Q⁻¹(c - Aᵀy), the closed form of Example 3 in Tanneau and Van Hentenryck (2024).
+    complete_fn = (y_pred, param_value) -> begin
         y_pred_proj = proj_fn(y_pred)
-
         Qz_val = Qz_fn([flatten_y(y_pred_proj); param_value])
-
-        z = Qinv * Qz_val
-
+        return y_pred_proj, Qinv * Qz_val
+    end
+    objective = (y_pred, param_value) -> begin
+        y_pred_proj, z = complete_fn(y_pred, param_value)
         obj_fn([flatten_y(y_pred_proj); param_value; z])
     end
+    completion_fn = (y_pred, param_value) -> begin
+        y_pred_proj, z = complete_fn(y_pred, param_value)
+        return (y = y_pred_proj, z = Vector{typeof(z)}(), w = z)
+    end
+    return (objective = objective, completion = completion_fn)
 end
+
+completed_constraints(::ConvexQP) = JuMP.ConstraintRef[]
 
 function get_quadslack(dual_model, decomposition::ConvexQP)
     return Dualization._get_dual_slack_variable.(dual_model,

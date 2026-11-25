@@ -25,29 +25,62 @@ end
 """
     jump_builder(decomposition::AbstractDecomposition, proj_fn::Function, dual_model::JuMP.Model, optimizer; silent=true)
 
-Build the completion function using JuMP to solve the model.
+Build the DLL layer `(y_pred, param_value) -> dual objective` by solving the
+completion model (problem (9) of Tanneau and Van Hentenryck, 2024) with JuMP.
 """
 function jump_builder(decomposition::AbstractDecomposition, proj_fn::Function, dual_model::JuMP.Model, optimizer; silent=true)
+    return _jump_layers(decomposition, proj_fn, dual_model, optimizer; silent).objective
+end
+
+"""
+    jump_completion_builder(decomposition::AbstractDecomposition, proj_fn::Function, dual_model::JuMP.Model, optimizer; silent=true)
+
+Build the completion `(y_pred, param_value) -> (y, z, w)` by solving the
+completion model with JuMP; `z` follows [`completed_constraints`](@ref) and `w`
+are the quadratic slack variables of the dual (if any).
+"""
+function jump_completion_builder(decomposition::AbstractDecomposition, proj_fn::Function, dual_model::JuMP.Model, optimizer; silent=true)
+    return _jump_layers(decomposition, proj_fn, dual_model, optimizer; silent).completion
+end
+
+function _jump_layers(decomposition::AbstractDecomposition, proj_fn::Function, dual_model::JuMP.Model, optimizer; silent=true)
     completion_model, (p_ref, y_ref, ref_map) = make_completion_model(decomposition, dual_model)
     JuMP.set_optimizer(completion_model, optimizer)
     silent && JuMP.set_silent(completion_model)
     completion_model.ext[:🔒] = ReentrantLock()
     # TODO: define frule/rrule using b-Ax
     # TODO: handle infeasibility?
-    return (y_pred, param_value) -> begin
+    z_vars = [getindex.(Ref(ref_map), zv) for zv in get_z_dual(dual_model, decomposition)]
+    w_vars = getindex.(Ref(ref_map), _quadslack_vars(dual_model))
+    solve! = (y_pred, param_value, extract) -> begin
         lock(completion_model.ext[:🔒])
         try
+            y_proj = proj_fn(y_pred)
             JuMP.set_parameter_value.(p_ref, param_value)
-            JuMP.set_parameter_value.(flatten_y(y_ref), flatten_y(proj_fn(y_pred)))
+            JuMP.set_parameter_value.(flatten_y(y_ref), flatten_y(y_proj))
 
             JuMP.optimize!(completion_model)
             JuMP.assert_is_solved_and_feasible(completion_model)
 
-            JuMP.objective_value(completion_model)
+            extract(y_proj)
         finally
             unlock(completion_model.ext[:🔒])
         end
     end
+    objective = (y_pred, param_value) -> solve!(y_pred, param_value, _ -> JuMP.objective_value(completion_model))
+    completion = (y_pred, param_value) -> solve!(y_pred, param_value, y_proj -> (
+        y = y_proj,
+        z = [JuMP.value.(zv) for zv in z_vars],
+        w = JuMP.value.(w_vars),
+    ))
+    return (objective = objective, completion = completion)
+end
+
+# Quadratic slack variables of the dual, ordered by the primal variable index.
+function _quadslack_vars(dual_model::JuMP.Model)
+    pdm = dual_model.ext[:_Dualization_jl_PrimalDualMap]
+    qs = pdm.primal_var_in_quad_obj_to_dual_slack_var
+    return [JuMP.VariableRef(dual_model, qs[k]) for k in sort!(collect(keys(qs)); by = k -> k.value)]
 end
 
 function make_completion_model(decomposition::AbstractDecomposition, dual_model::JuMP.Model)
@@ -76,6 +109,18 @@ end
 
 function get_p(dual_model, decomposition::AbstractDecomposition)
     return Dualization._get_dual_parameter.(dual_model, decomposition.p_ref)
+end
+
+"""
+    completed_constraints(decomposition::AbstractDecomposition) -> Vector{JuMP.ConstraintRef}
+
+Primal constraints whose dual variables (`z`) are recovered by the completion
+step rather than predicted. The fallback is the field `decomposition.z_ref`.
+"""
+completed_constraints(decomposition::AbstractDecomposition) = decomposition.z_ref
+
+function get_z_dual(dual_model, decomposition::AbstractDecomposition)
+    return [Dualization._get_dual_variables(dual_model, cr) for cr in completed_constraints(decomposition)]
 end
 
 function get_y_constraint(dual_model, decomposition::AbstractDecomposition)
