@@ -51,7 +51,7 @@ function convex_qp_builder(decomposition::ConvexQP, proj_fn, dual_model::JuMP.Mo
     )
 
     Q = zeros(length(z_vars), length(z_vars))
-    Qz = zeros(JuMP.AffExpr, length(z_vars))
+    Qz = [zero(JuMP.AffExpr) for _ in 1:length(z_vars)]  # not `zeros`: it aliases one mutable AffExpr (#13)
     idx_left = collect(reverse(1:length(z_vars)))
     for (F, S) in types
         @assert F <: JuMP.GenericAffExpr "Unsupported constraint function in convex_qp_builder: $F with set $S"

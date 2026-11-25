@@ -39,7 +39,7 @@ function bounded_builder(decomposition::BoundDecomposition, proj_fn, dual_model:
         JuMP.list_of_constraint_types(dual_model)
     )
 
-    zl_plus_zu = zeros(JuMP.AffExpr, length(zl_vars))
+    zl_plus_zu = [zero(JuMP.AffExpr) for _ in 1:length(zl_vars)]  # not `zeros`: it aliases one mutable AffExpr (#13)
     idx_left = Set(1:length(zl_vars))
     for (F, S) in types
         @assert F <: JuMP.GenericAffExpr "Unsupported constraint function in bounded_lp_builder: $F"
