@@ -1,0 +1,34 @@
+cff-version: 1.2.0
+message: "If you use L2ODLL.jl, please cite the software and the Dual Lagrangian Learning paper."
+title: "L2ODLL.jl: Dual Lagrangian Learning in JuMP"
+authors:
+  - name: "LearningToOptimize contributors"
+repository-code: "https://github.com/LearningToOptimize/L2ODLL.jl"
+license: MIT
+preferred-citation:
+  type: conference-paper
+  title: "Dual Lagrangian Learning for Conic Optimization"
+  authors:
+    - family-names: Tanneau
+      given-names: Mathieu
+    - family-names: "Van Hentenryck"
+      given-names: Pascal
+  collection-title: "Advances in Neural Information Processing Systems"
+  year: 2024
+  identifiers:
+    - type: other
+      value: "arXiv:2402.03086"
+references:
+  - type: article
+    title: "Dual Interior Point Optimization Learning"
+    authors:
+      - family-names: Klamkin
+        given-names: Michael
+      - family-names: Tanneau
+        given-names: Mathieu
+      - family-names: "Van Hentenryck"
+        given-names: Pascal
+    year: 2024
+    identifiers:
+      - type: other
+        value: "arXiv:2402.02596"
