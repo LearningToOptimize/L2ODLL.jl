@@ -7,7 +7,7 @@ L2ODLL automatically detects the decomposition to use based on the model.
 The current detection logic is as follows:
 
 - If all variables have finite upper and lower bounds **and the objective is affine in the decision variables**, use the bounded decomposition.
-- If all variables have a quadratic objective term, use the convex QP decomposition.
+- If the objective is strictly convex (positive definite Hessian for `Min`, negative definite for `Max`), use the convex QP decomposition.
 - Otherwise, no closed form is available: build a `GenericDecomposition` by hand and pass an `optimizer` to `decompose!`.
 
 The order of preference is to maximize the number of completed dual variables among the closed-form solutions. The analysis below shows that for a convex QP with bounds on every variable, the bounded decomposition would complete more dual variables than the convex QP decomposition.

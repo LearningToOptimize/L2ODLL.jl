@@ -110,6 +110,9 @@ function _bounded_layers(decomposition::BoundDecomposition, proj_fn, dual_model:
     elseif completion == :log
         l = getfield.(getfield.(JuMP.constraint_object.(decomposition.zl_ref), :set), :lower)
         u = getfield.(getfield.(JuMP.constraint_object.(decomposition.zu_ref), :set), :upper)
+        # eq. (7) of Klamkin, Tanneau and Van Hentenryck uses v = μ / (u - l): needs l < u, μ > 0
+        all(u .> l) || error("The log-barrier completion requires l < u for every variable.")
+        μ > 0 || error("The log-barrier completion requires μ > 0; use completion = :exact for μ = 0.")
         LogBoundedCompletion(μ, l, u)
     else
         error("Invalid completion type: $completion. Must be :exact or :log.")

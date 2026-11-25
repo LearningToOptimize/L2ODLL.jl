@@ -82,7 +82,7 @@ a lower bound, and the marginal price ``y = 3`` gives the optimum.
 | decomposition | when | predicted ``y`` | completed | completion |
 |:--|:--|:--|:--|:--|
 | [`BoundDecomposition`](@ref) | every variable has finite bounds, objective affine in ``x`` | all constraints except bounds | bound duals ``z_l, z_u`` | closed form (Theory eq. 4) |
-| [`ConvexQP`](@ref) | every variable has a quadratic objective term (``Q \succ 0``) | all constraints | quadratic slacks ``w`` | closed form (Theory eq. 6) |
+| [`ConvexQP`](@ref) | strictly convex objective (Hessian ``Q \succ 0``; ``\prec 0`` for `Max`) | all constraints | quadratic slacks ``w`` | closed form (Theory eq. 6) |
 | [`GenericDecomposition`](@ref) | any; built by hand | the constraints you choose | the others | a solver (`optimizer`) |
 
 See [Decompositions](../background/decompositions.md) and

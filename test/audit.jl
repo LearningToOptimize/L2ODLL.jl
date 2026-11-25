@@ -156,4 +156,38 @@ end
         w = L2ODLL.dual_completion(model, JuMP.dual.(L2ODLL.get_y(model)), pv).w
         @test w ≈ JuMP.value.(x) atol = 1e-5
     end
+
+    # LogBarrierGradientTheorem5 (DIPOL Theorems 3 and 5): the barrier-augmented
+    # completion value Ξ_μ(r) = max {lᵀz_l + uᵀz_u + μ Σ(ln z_l + ln(-z_u)) : z_l + z_u = r}
+    # has derivative x_μ(r) given in closed form by Theorem 5. Evaluating Ξ_μ at
+    # L2ODLL's completion (eq. 7) and differentiating checks that eq. 7 is the
+    # exact maximizer (envelope theorem) and the closed form of x_μ.
+    @testset "LogBarrierGradientTheorem5" begin
+        rng = Random.Xoshiro(23)
+        n = 15
+        l, u = -1 .- rand(rng, n), 1 .+ rand(rng, n)
+        for μ in (1e-3, 0.1, 1.0)
+            c = L2ODLL.LogBoundedCompletion(μ, l, u)
+            Ξ = r -> begin
+                zl, zu = L2ODLL.complete_zlzu(c, r)
+                l' * zl + u' * zu + μ * sum(log.(zl) .+ log.(-zu))
+            end
+            r = 3 .* randn(rng, n)
+            xμ = (u .+ l) ./ 2 .+ μ ./ r .- sign.(r) .* sqrt.((μ ./ r) .^ 2 .+ ((u .- l) ./ 2) .^ 2)
+            @test ForwardDiff.gradient(Ξ, r) ≈ xμ rtol = 1e-8
+            @test all(l .< xμ .< u)                      # interior, as μ > 0
+        end
+        # eq. (7) needs l < u and μ > 0
+        m = JuMP.Model()
+        JuMP.@variable(m, 0 <= x[1:2] <= 1)
+        JuMP.set_lower_bound(x[2], 1.0)                  # l₂ = u₂
+        JuMP.@variable(m, p in MOI.Parameter(0.5))
+        JuMP.@constraint(m, x[1] + x[2] >= p)
+        JuMP.@objective(m, Min, x[1] + 2x[2])
+        cache = L2ODLL.decompose!(m)
+        @test_throws ErrorException L2ODLL.bounded_builder(cache.decomposition, cache.y_proj, cache.dual_model; completion = :log, μ = 0.1)
+        model, _, _ = bounded_lp(rng)
+        cache = L2ODLL.decompose!(model)
+        @test_throws ErrorException L2ODLL.bounded_builder(cache.decomposition, cache.y_proj, cache.dual_model; completion = :log, μ = 0.0)
+    end
 end

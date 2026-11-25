@@ -56,7 +56,8 @@ See the [economic dispatch example](https://learningtooptimize.github.io/L2ODLL.
   and the linear objective coefficients.
 - A problem with a closed-form completion: **every variable bounded** with an
   objective affine in the variables (any cones in the constraints), or a **strictly
-  convex quadratic objective** (every variable has a quadratic term). Other
+  convex quadratic objective** (positive definite Hessian; negative definite for
+  `Max`). Other
   problems work with a hand-built `GenericDecomposition` and a solver for the
   completion.
 - A proxy producing `sum(y_shape(model))` outputs per instance, in any Julia ML

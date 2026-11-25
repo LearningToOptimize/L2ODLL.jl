@@ -36,7 +36,8 @@ end
 
 # Assumptions: convex conic (or convex quadratic) instances, so that the
 # Lagrangian dual of the completed point is a valid bound. Whether a closed-form
-# completion exists is decided per model by `decompose` (it errors otherwise).
+# completion exists is decided per model by `decompose` (it errors otherwise);
+# e.g. a ConvexQuadratic problem with a singular Hessian has no ConvexQP completion.
 L2OCore.supports(::DualLagrangianLearning, ::L2OCore.LinearConic) = true
 L2OCore.supports(::DualLagrangianLearning, ::L2OCore.ConvexQuadratic) = true
 

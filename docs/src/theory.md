@@ -240,6 +240,15 @@ coefficients, right-hand sides and cone constants.
 | `CoreConsistency` | L2OCore's independent Lagrangian bound of the completed duals = ``\Phi``, dual infeasibility ``\le 10^{-8}`` | — | — |
 | `BatchMatchesColumns` | matrix API = per-instance API | — | — |
 | `ReverseModeAD` | Zygote gradient of the L2OCore loss = ForwardDiff | — | — |
+| `StrictConvexityRequired` | `ConvexQP` is used only when ``Q \succ 0`` (``\prec 0`` for max); otherwise detection fails and the builder errors | — | DLL Example 3 |
+| `ParametersInCoefficientsRejected` | a parameter multiplying a variable in a constraint raises an error | violates (A1) | — |
+| `ObjectiveConstantsIncluded` | constants and parameter-only objective terms are part of ``\Phi`` (tightness holds) | — | — |
+| `ConcaveInY` | ``\Phi`` is concave on ``\mathcal{C}^*`` (convex for max) | — | DIPOL Thm 3 |
+| `OptimalCompletion` | for fixed ``\bar y`` the exact completion beats any other feasible one (the log-barrier one) | — | DLL Thm 2 |
+| `BoundedClosedFormEq4` | ``\Phi`` equals eq. (4) computed by hand from the problem data | — | DLL Example 1 |
+| `ConvexQPClosedFormEq6` | ``\Phi`` and ``w`` equal eq. (6) computed by hand | ``Q \succ 0`` | DLL Example 3 |
+| `QuadSlackRecoversPrimal` | ``w(y^\star) = x^\star`` | ``Q \succ 0`` | DLL Example 3 |
+| `LogBarrierGradientTheorem5` | eq. (5) maximizes the barrier completion problem and its value has derivative ``x_\mu(r)`` (closed form of DIPOL Thm 5) | ``l < u``, ``\mu > 0`` | DIPOL Thms 3, 5 |
 
 ## Deviations from the papers
 
@@ -248,8 +257,14 @@ coefficients, right-hand sides and cone constants.
   a custom `proj_fn` can implement the radial one.
 - **Bounded decomposition with a quadratic objective.** The background pages describe
   predicting ``(y, w)`` and completing the bounds; this is not implemented yet. Such
-  models are detected as [`ConvexQP`](@ref) (if every variable has a quadratic term),
+  models are detected as [`ConvexQP`](@ref) (if the objective is strictly convex),
   and requesting `BoundDecomposition` explicitly raises an error.
+- **Log-barrier layer.** With `completion = :log`, the layer returns the plain dual
+  objective (4) evaluated at the smoothed completion (5): a valid bound, smooth in
+  ``\bar y``. DIPOL trains with the barrier-augmented objective (DIPOL eq. 4), whose
+  supergradient is ``-b - A x_\mu`` (Theorems 3, 5); the plain objective has a
+  different gradient. The barrier-augmented value can be built from
+  `L2ODLL.complete_zlzu` as in the `LogBarrierGradientTheorem5` test.
 - **Infeasible generic completions.** Only the two closed forms satisfy Theorem 1's
   assumption by construction. A `GenericDecomposition` completion may be infeasible
   (issue #6); the JuMP layer then throws instead of returning a bound.
