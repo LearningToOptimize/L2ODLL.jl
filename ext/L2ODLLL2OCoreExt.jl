@@ -57,7 +57,7 @@ struct DLLDecomposition{C} <: L2OCore.AbstractDecomposition
     perm::Vector{Int}
 end
 
-L2OCore.output_dimension(d::DLLDecomposition) = sum(d.y_shape; init = 0)
+L2OCore.output_dimension(d::DLLDecomposition) = isempty(d.y_shape) ? 0 : sum(d.y_shape)
 
 function L2OCore.decompose(problem::L2OCore.ParametricProblem, m::DualLagrangianLearning)
     model = problem.model

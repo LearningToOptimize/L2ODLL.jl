@@ -148,8 +148,8 @@ end
 
 function _check_batch(model::JuMP.Model, Y::AbstractMatrix, P::AbstractMatrix)
     shape = y_shape(model)
-    size(Y, 1) == sum(shape; init=0) ||
-        throw(DimensionMismatch("Y has $(size(Y, 1)) rows, expected sum(y_shape(model)) = $(sum(shape; init=0))"))
+    size(Y, 1) == (isempty(shape) ? 0 : sum(shape)) ||
+        throw(DimensionMismatch("Y has $(size(Y, 1)) rows, expected sum(y_shape(model)) = $((isempty(shape) ? 0 : sum(shape)))"))
     size(Y, 2) == size(P, 2) ||
         throw(DimensionMismatch("Y has $(size(Y, 2)) columns but P has $(size(P, 2))"))
     return shape
@@ -353,8 +353,11 @@ Unflatten a vector of flattened `y` variables into a vector of vectors, i.e. Vec
 """
 function unflatten_y(y::Vector{T}, y_shape::Vector{Int}) where T
     # Non-mutating so that reverse-mode AD (e.g. Zygote) can differentiate through it.
-    stops = cumsum(y_shape)
-    return Vector{T}[y[(stop - len + 1):stop] for (len, stop) in zip(y_shape, stops)]
+    # (`cumsum` is avoided as well: its reverse rule fails on integer arguments.)
+    return map(eachindex(y_shape)) do i
+        stop = sum(view(y_shape, 1:i))
+        y[(stop - y_shape[i] + 1):stop]
+    end
 end
 
 function __init__()
