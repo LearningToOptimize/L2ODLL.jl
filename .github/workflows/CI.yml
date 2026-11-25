@@ -16,9 +16,10 @@ jobs:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
-    permissions: # needed to allow julia-actions/cache to delete old caches that it has created
-      actions: write
+    permissions:
+      actions: write   # julia-actions/cache deletes old caches it has created
       contents: read
+      id-token: write  # Codecov upload with OIDC
     strategy:
       fail-fast: false
       matrix:
@@ -55,6 +56,5 @@ jobs:
       - uses: codecov/codecov-action@v5
         with:
           files: lcov.info
-          token: ${{ secrets.CODECOV_TOKEN }}
-          # Do not fail the build while the Codecov token is not configured.
+          use_oidc: true
           fail_ci_if_error: false
