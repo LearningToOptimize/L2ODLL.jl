@@ -25,13 +25,15 @@ Adapt.@adapt_structure VecAffExprMatrix
 
 
 function AffExprMatrix(
-    aff::Vector{JuMP.GenericAffExpr{T,V}},
+    aff::JuMP.GenericAffExpr{T,V},
     v::Vector{V};
     backend = nothing
 ) where {T,V}
     n = length(v)
+    vr_to_idx = _vr_to_idx(v)
 
     c = zeros(T, n)
+    c0 = aff.constant
 
     for (coeff, vr) in JuMP.linear_terms(aff)
         c[vr_to_idx[vr]] = coeff
