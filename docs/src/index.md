@@ -28,9 +28,40 @@ bound and gradient functions automatically.
 
 ## Installation
 
+L2ODLL is not registered yet. Its optional `L2OCore` interface
+([`L2ODLL.DLLMethod`](@ref)) comes from the development version of
+LearningToOptimize.jl; the registered LearningToOptimize 1.0.0 predates it. Install
+the core subpackage first, then L2ODLL, on any Julia version from 1.10:
+
 ```julia
 import Pkg
+Pkg.add(; url = "https://github.com/LearningToOptimize/LearningToOptimize.jl", subdir = "lib/L2OCore")
 Pkg.add(; url = "https://github.com/LearningToOptimize/L2ODLL.jl")
+Pkg.add("JuMP")   # used by every example
+```
+
+The examples also use HiGHS and Clarabel: `Pkg.add(["HiGHS", "Clarabel"])`.
+
+## Example
+
+```julia
+using JuMP, L2ODLL
+
+model = Model()
+@variable(model, 0 <= x[1:2] <= 1)
+@variable(model, d in MOI.Parameter(1.0))          # parameter: the demand
+@constraint(model, balance, x[1] + x[2] == d)
+@objective(model, Min, x[1] + 3x[2])
+
+decompose!(model)                                   # detects BoundDecomposition
+
+dual_objective(model, [[2.0]], [1.5])               # 2.0 ≤ OPT(1.5) = 2.5, for any prediction
+dual_objective(model, [[3.0]], [1.5])               # 2.5: the optimal price gives the optimum
+dual_objective_gradient(model, [[2.0]], [1.5])      # training signal
+
+Y = randn(sum(y_shape(model)), 64)                  # batch: predictions × instances
+P = 1 .+ rand(1, 64)                                # parameters × instances
+bounds, G = dual_objective_and_gradient(model, Y, P)
 ```
 
 ## Where to go next
@@ -46,8 +77,11 @@ Pkg.add(; url = "https://github.com/LearningToOptimize/L2ODLL.jl")
 
 ## The LearningToOptimize ecosystem
 
-| package | role |
+| Package | What it provides |
 |:--|:--|
-| [LearningToOptimize.jl](https://github.com/LearningToOptimize/LearningToOptimize.jl) | shared interface (`L2OCore`), data generation, basic methods |
-| **L2ODLL.jl** | dual methods: valid dual bounds by completion |
-| [DecisionRules.jl](https://github.com/LearningToOptimize/DecisionRules.jl) | decision rules for multistage stochastic optimization |
+| [LearningToOptimize.jl](https://github.com/LearningToOptimize/LearningToOptimize.jl) | the penalty method, Flux training and solver-labeled dataset generation; hosts the two subpackages below |
+| ↳ [L2OCore](https://github.com/LearningToOptimize/LearningToOptimize.jl/tree/main/lib/L2OCore) | the shared interface: method families, problem wrapper, batched evaluators, datasets |
+| ↳ [L2OSobolev](https://github.com/LearningToOptimize/LearningToOptimize.jl/tree/main/lib/L2OSobolev) | derivative (Sobolev) supervision added to any method |
+| [L2ODLL.jl](https://github.com/LearningToOptimize/L2ODLL.jl) | Dual Lagrangian Learning: dual proxies that give valid dual bounds for conic problems |
+| [L2ODC3.jl](https://github.com/LearningToOptimize/L2ODC3.jl) | DC3: equality completion and inequality correction for primal proxies |
+| [L2OALM.jl](https://github.com/LearningToOptimize/L2OALM.jl) | primal-dual learning with an augmented Lagrangian |
