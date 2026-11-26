@@ -1,0 +1,4 @@
+# BlueStyle, checked with JuliaFormatter 1.x (pinned in .github/workflows/Format.yml).
+style = "blue"
+margin = 100
+always_for_in = true

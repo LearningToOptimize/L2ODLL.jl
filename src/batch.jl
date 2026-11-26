@@ -14,39 +14,30 @@ struct VecAffExprMatrix{M,V} <: AbstractExprMatrix
     b::V
 end
 
-
 Adapt.@adapt_structure AffExprMatrix
 Adapt.@adapt_structure QuadExprMatrix
 Adapt.@adapt_structure VecAffExprMatrix
 
-(aem::AffExprMatrix)(x) = aem.c'*x + aem.c0
-(qem::QuadExprMatrix)(x) = x'*qem.Q*x + qem.c'*x + qem.c0
-(vaem::VecAffExprMatrix)(x) = vaem.A*x + vaem.b
+(aem::AffExprMatrix)(x) = aem.c' * x + aem.c0
+(qem::QuadExprMatrix)(x) = x' * qem.Q * x + qem.c' * x + qem.c0
+(vaem::VecAffExprMatrix)(x) = vaem.A * x + vaem.b
 
-
-function AffExprMatrix(
-    aff::Vector{JuMP.GenericAffExpr{T,V}},
-    v::Vector{V};
-    backend = nothing
-) where {T,V}
+function AffExprMatrix(aff::JuMP.GenericAffExpr{T,V}, v::Vector{V}; backend=nothing) where {T,V}
     n = length(v)
+    vr_to_idx = _vr_to_idx(v)
 
-    c = zeros(T, n)
+    c = fill(zero(T), n)
+    c0 = aff.constant
 
     for (coeff, vr) in JuMP.linear_terms(aff)
         c[vr_to_idx[vr]] = coeff
     end
 
-    c = _backend_vector(backend)(c)
-    return AffExprMatrix(c, c0)
+    c_backend = _backend_vector(backend)(c)
+    return AffExprMatrix(c_backend, c0)
 end
 
-
-function QuadExprMatrix(
-    qexpr::JuMP.GenericQuadExpr{T,V},
-    v::Vector{V};
-    backend = nothing
-) where {T,V}
+function QuadExprMatrix(qexpr::JuMP.GenericQuadExpr{T,V}, v::Vector{V}; backend=nothing) where {T,V}
     quad_terms = JuMP.quad_terms(qexpr)
     nq = length(quad_terms)
     n = length(v)
@@ -59,7 +50,7 @@ function QuadExprMatrix(
     sizehint!(Qj, nq)
     Qv = T[]
     sizehint!(Qv, nq)
-    c = zeros(T, n)
+    c = fill(zero(T), n)
     c0 = qexpr.aff.constant
 
     for (coeff, vr1, vr2) in quad_terms
@@ -72,15 +63,12 @@ function QuadExprMatrix(
     end
 
     Q = _backend_matrix(backend)(Qi, Qj, Qv, n, n)
-    c = _backend_vector(backend)(c)
-    return QuadExprMatrix(Q, c, c0)
+    c_backend = _backend_vector(backend)(c)
+    return QuadExprMatrix(Q, c_backend, c0)
 end
 
-
 function VecAffExprMatrix(
-    vaff::Vector{JuMP.GenericAffExpr{T,V}},
-    v::Vector{V};
-    backend = nothing
+    vaff::Vector{JuMP.GenericAffExpr{T,V}}, v::Vector{V}; backend=nothing
 ) where {T,V}
     m = length(vaff)
     n = length(v)
@@ -96,7 +84,7 @@ function VecAffExprMatrix(
     sizehint!(Aj, nlinear)
     Av = T[]
     sizehint!(Av, nlinear)
-    b = zeros(T, m)
+    b = fill(zero(T), m)
 
     for (i, jaff) in enumerate(vaff)
         for (coeff, vr) in linear_terms[i]
@@ -112,12 +100,12 @@ function VecAffExprMatrix(
     end
 
     A = _backend_matrix(backend)(Ai, Aj, Av, m, n)
-    b = _backend_vector(backend)(b)
-    return VecAffExprMatrix(A, b)
+    b_backend = _backend_vector(backend)(b)
+    return VecAffExprMatrix(A, b_backend)
 end
 
 function _vr_to_idx(v::V) where {V}
-    vr_to_idx = Dict{eltype(V), Int}()
+    vr_to_idx = Dict{eltype(V),Int}()
     for (i, vr) in enumerate(v)
         vr_to_idx[vr] = i
     end

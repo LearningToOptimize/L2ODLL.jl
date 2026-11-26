@@ -8,7 +8,7 @@ function convert_newcommand_to_pair(s::AbstractString)
         parts = split(s, "}{")
         @assert length(parts) == 2
         cmd = replace(parts[1], "\\newcommand{\\" => "")
-        return Symbol(cmd) => parts[2][1:end-1]
+        return Symbol(cmd) => parts[2][1:(end - 1)]
     end
 
     return nothing
@@ -21,9 +21,6 @@ Create a `Documenter.HTMLWriter.MathJax3` `config` based on a LaTeX file contain
 """
 function make_macros_dict(definitions_path::AbstractString)
     defs_txt = read(definitions_path, String)
-    pairs = filter(
-        !isnothing,
-        map(convert_newcommand_to_pair ∘ strip, split(defs_txt, "\n"))
-    )
+    pairs = filter(!isnothing, map(convert_newcommand_to_pair ∘ strip, split(defs_txt, "\n")))
     return Dict(pairs)
 end

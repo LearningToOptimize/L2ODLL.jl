@@ -14,9 +14,7 @@ function _projection_fn(set, y)
     if isnothing(set)
         return y
     elseif length(y) == 1 && (
-        set isa MOI.EqualTo ||
-        set isa MOI.LessThan ||
-        set isa MOI.GreaterThan
+        set isa MOI.EqualTo || set isa MOI.LessThan || set isa MOI.GreaterThan
         # TODO: add other sets with one dual variable
     )
         # vector type here?
@@ -28,23 +26,32 @@ end
 
 function get_y_sets(dual_model, decomposition)
     return [
-        isnothing(set) ? nothing : MOI.get(dual_model, MOI.ConstraintSet(), set)
-        for set in get_y_constraint(dual_model, decomposition)
+        isnothing(set) ? nothing : MOI.get(dual_model, MOI.ConstraintSet(), set) for
+        set in get_y_constraint(dual_model, decomposition)
     ]
 end
 
-function make_jump_proj_fn(decomposition::AbstractDecomposition, dual_model::JuMP.Model, optimizer; silent=true)
+"""
+    make_jump_proj_fn(decomposition::AbstractDecomposition, dual_model::JuMP.Model, optimizer; silent=true)
+
+Like [`make_proj_fn`](@ref), but computes the Euclidean projection onto the dual
+cones by solving `min ‖y - ŷ‖²` with `optimizer` (for cones without a closed-form
+projection). Not differentiable with automatic differentiation.
+"""
+function make_jump_proj_fn(
+    decomposition::AbstractDecomposition, dual_model::JuMP.Model, optimizer; silent=true
+)
     sets = get_y_sets(dual_model, decomposition)
     shapes = y_shape(dual_model, decomposition)
 
     proj_model = JuMP.Model(optimizer)
 
-    idxs = [(i, ji) for (i,j) in enumerate(shapes) for ji in 1:j]
+    idxs = [(i, ji) for (i, j) in enumerate(shapes) for ji in 1:j]
     JuMP.@variable(proj_model, y[idxs])
 
     for (i, set) in enumerate(sets)
         isnothing(set) && continue
-        y_vars = filter(ij->first(ij)==i, idxs)
+        y_vars = filter(ij -> first(ij) == i, idxs)
         if length(y_vars) == 1
             JuMP.@constraint(proj_model, y[only(y_vars)] ∈ set)
         else
@@ -58,12 +65,13 @@ function make_jump_proj_fn(decomposition::AbstractDecomposition, dual_model::JuM
     return (y_prediction) -> begin
         lock(proj_model.ext[:🔒])
         try
-            JuMP.set_objective_function(proj_model, sum((y .- flatten_y(y_prediction)).^2))
+            JuMP.set_objective_function(proj_model, sum((y .- flatten_y(y_prediction)) .^ 2))
             JuMP.set_objective_sense(proj_model, MOI.MIN_SENSE)
             JuMP.optimize!(proj_model)
             JuMP.assert_is_solved_and_feasible(proj_model)
-            
-            value.(y)
+
+            # same Vector{Vector} shape as `make_proj_fn`
+            unflatten_y([JuMP.value(y[ij]) for ij in idxs], shapes)
         finally
             unlock(proj_model.ext[:🔒])
         end
