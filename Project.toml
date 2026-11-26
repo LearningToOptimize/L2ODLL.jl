@@ -24,7 +24,7 @@ L2ODLLL2OCoreExt = "L2OCore"
 # L2OCore is not registered yet. Julia >= 1.11 reads this; on Julia 1.10, CI adds
 # it explicitly (see .github/workflows/CI.yml).
 [sources]
-L2OCore = {url = "https://github.com/LearningToOptimize/LearningToOptimize.jl", rev = "ar/l2ocore-design", subdir = "lib/L2OCore"}
+L2OCore = {url = "https://github.com/LearningToOptimize/LearningToOptimize.jl", rev = "main", subdir = "lib/L2OCore"}
 
 [compat]
 Adapt = "4.3.0"
