@@ -53,6 +53,21 @@ L2ODLL.make_proj_fn
 L2ODLL.make_jump_proj_fn
 ```
 
+## Batched layers
+
+```@docs
+batched_layer
+batched_completion
+L2ODLL.AbstractBatchedLayer
+L2ODLL.BoundedBatchedLayer
+L2ODLL.ConvexQPBatchedLayer
+L2ODLL.BatchedProjection
+L2ODLL.ProjectionBlock
+L2ODLL.densify
+L2ODLL.objective_hessian
+L2ODLL.is_strictly_convex_objective
+```
+
 ## L2OCore interface
 
 Defined in the package extension `L2ODLLL2OCoreExt` (load with `import L2OCore`).

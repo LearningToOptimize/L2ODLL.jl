@@ -95,7 +95,7 @@ function _jump_layers(
             param_value,
             y_proj -> (y=y_proj, z=[JuMP.value.(zv) for zv in z_vars], w=JuMP.value.(w_vars)),
         )
-    return (objective=objective, completion=completion)
+    return (objective=objective, completion=completion, batch=nothing)
 end
 
 # Quadratic slack variables of the dual, ordered by the primal variable index.

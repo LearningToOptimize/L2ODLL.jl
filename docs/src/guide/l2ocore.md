@@ -78,12 +78,28 @@ can train a DLL proxy: the proxy is just a callable mapping parameters to the
 
 ## GPU and batching
 
-The closed-form layers are matrix expressions (`QuadExprMatrix`,
-`VecAffExprMatrix`; `Adapt`-compatible, with a `backend` hook for the array type,
-of which only the CPU backend is defined so far) evaluated per instance. The batched matrix API currently loops over
-columns on the CPU. A fully batched layer, where ``Y`` and ``P`` are device matrices
-and the completion (Theory eqs. 4–6) is a few dense or sparse matrix products and
-elementwise operations, is the natural next step; it fits the ExaModels /
-BatchNLPKernels evaluation path planned in L2OCore. Projections onto cones other
-than the nonnegative orthant and the second-order cone would need batched kernels
-as well.
+For the closed-form decompositions, [`decompose!`](@ref) also builds a **batched
+layer** ([`batched_layer`](@ref)). It evaluates a whole batch (one instance per
+column) with matrix products and broadcasts only, so it
+
+- is used automatically by the matrix forms `dual_objective(model, Y, P)` and
+  `dual_objective_and_gradient(model, Y, P)` and by the L2OCore `complete`/`loss`;
+- differentiates with Zygote (one pullback for the batch) and with ForwardDiff
+  (one pushforward per row of `Y`, independent of the batch size);
+- is written for accelerator arrays: no scalar indexing, no mutation.
+
+```julia
+using Adapt, CUDA                       # or any GPU array package
+layer = Adapt.adapt(CuArray, L2ODLL.densify(batched_layer(model)))
+Y, P = CuArray(Y), CuArray(P)           # sum(y_shape) × B, num_parameters × B
+bounds = layer(Y, P)                    # CuVector of valid bounds
+∇ = Zygote.gradient(Y -> sum(layer(Y, P)), Y)[1]
+c = batched_completion(layer, Y, P)     # (y, z, w) as device matrices
+```
+
+The test suite runs this path with JLArrays (a reference GPU array type that
+forbids scalar indexing) and compares values, Zygote gradients and completions with
+the CPU ones. CI has no GPU, so the CUDA snippet above is not run there. Projections onto cones other than scalar sets,
+orthants and second-order cones fall back to a per-column CPU projection.
+ExaModels and BatchNLPKernels-based evaluation in L2OCore is complementary: it
+evaluates the primal problem, while this layer evaluates the dual bound.

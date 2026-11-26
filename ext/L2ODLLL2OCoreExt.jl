@@ -26,13 +26,17 @@ const MOI = JuMP.MOI
 Dual Lagrangian Learning (Tanneau and Van Hentenryck, 2024). Construct it with
 [`L2ODLL.DLLMethod`](@ref).
 """
-struct DualLagrangianLearning{D,O} <: L2OCore.AbstractDualMethod
+struct DualLagrangianLearning{D,O,K<:NamedTuple} <: L2OCore.AbstractDualMethod
     decomposition::D  # nothing (auto-detect) or `model -> L2ODLL.AbstractDecomposition`
     optimizer::O      # optimizer for completions without a closed form, or nothing
+    options::K        # further keyword arguments of `L2ODLL.decompose!` (projection, completion, μ)
+end
+function DualLagrangianLearning(decomposition, optimizer)
+    return DualLagrangianLearning(decomposition, optimizer, (;))
 end
 
-function L2ODLL.DLLMethod(; decomposition=nothing, optimizer=nothing)
-    return DualLagrangianLearning(decomposition, optimizer)
+function L2ODLL.DLLMethod(; decomposition=nothing, optimizer=nothing, kwargs...)
+    return DualLagrangianLearning(decomposition, optimizer, NamedTuple(kwargs))
 end
 
 # DLL applies to convex conic (or convex quadratic) instances, where the
@@ -62,9 +66,9 @@ L2OCore.output_dimension(d::DLLDecomposition) = isempty(d.y_shape) ? 0 : sum(d.y
 function L2OCore.decompose(problem::L2OCore.ParametricProblem, m::DualLagrangianLearning)
     model = problem.model
     cache = if m.decomposition === nothing
-        L2ODLL.decompose!(model)
+        L2ODLL.decompose!(model; m.options...)
     else
-        L2ODLL.decompose!(model, m.decomposition(model); optimizer=m.optimizer)
+        L2ODLL.decompose!(model, m.decomposition(model); optimizer=m.optimizer, m.options...)
     end
     cache.completion === nothing &&
         error("the DLL decomposition has no completion; pass `optimizer` to `DLLMethod`")
@@ -132,6 +136,11 @@ function L2OCore.complete(::DualLagrangianLearning, pipe::L2OCore.L2OPipeline, i
     d = pipe.decomposition::DLLDecomposition
     P, Z = _asbatch(inputs), _asbatch(output)
     _check_output(d, Z, P)
+    batch = d.cache.batch
+    if batch !== nothing   # closed form: whole batch at once (AD- and GPU-friendly)
+        c = L2ODLL.batched_completion(batch, Z, P)
+        return L2OCore.Prediction(; dual=vcat(c.y, c.z)[d.perm, :])
+    end
     cols = [_complete_column(d, view(Z, :, k), view(P, :, k)) for k in axes(Z, 2)]
     return L2OCore.Prediction(; dual=reduce(hcat, cols))
 end
@@ -153,11 +162,7 @@ function L2OCore.loss(
     d = pipe.decomposition::DLLDecomposition
     P, Z = _asbatch(inputs), _asbatch(output)
     _check_output(d, Z, P)
-    vals = [
-        L2ODLL.dual_objective(
-            d.model, L2ODLL.unflatten_y(collect(Z[:, k]), d.y_shape), collect(P[:, k])
-        ) for k in axes(Z, 2)
-    ]
+    vals = L2ODLL.dual_objective(d.model, Z, P)   # batched when a closed form exists
     return _loss_sign(d.model) * sum(vals) / length(vals)
 end
 

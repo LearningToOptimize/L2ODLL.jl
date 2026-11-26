@@ -108,7 +108,11 @@ function convex_qp_completion_builder(
 end
 
 function _convex_qp_layers(
-    decomposition::ConvexQP, proj_fn, dual_model::JuMP.Model; backend=nothing
+    decomposition::ConvexQP,
+    proj_fn,
+    dual_model::JuMP.Model;
+    backend=nothing,
+    batch_projection=nothing,
 )
     if !isempty(decomposition.x_ref)
         primal = JuMP.owner_model(first(decomposition.x_ref))
@@ -182,7 +186,12 @@ function _convex_qp_layers(
         y_pred_proj, z = complete_fn(y_pred, param_value)
         return (y=y_pred_proj, z=Vector{typeof(z)}(), w=z)
     end
-    return (objective=objective, completion=completion_fn)
+    batch = if isnothing(batch_projection)
+        nothing
+    else
+        ConvexQPBatchedLayer(batch_projection, Qz_fn.A, Qz_fn.b, Qinv, obj_fn.Q, obj_fn.c, obj_fn.c0)
+    end
+    return (objective=objective, completion=completion_fn, batch=batch)
 end
 
 completed_constraints(::ConvexQP) = JuMP.ConstraintRef[]

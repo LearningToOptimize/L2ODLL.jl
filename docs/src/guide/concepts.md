@@ -111,6 +111,16 @@ A new decomposition **type** subtypes [`AbstractDecomposition`](@ref) with field
 field) and, to take part in auto-detection, [`can_decompose`](@ref). A closed form
 is supplied through the builders below.
 
+### Projection and completion options
+
+`decompose!(model; projection = :radial)` uses the radial projection of the DLL
+paper for second-order cones (eq. 26, closed form eq. 39), which keeps a nonzero
+gradient where the Euclidean projection is identically zero.
+`decompose!(model; completion = :log, μ = 0.1)` (bounded decomposition) uses the
+log-barrier completion (Theory eq. 5). Both keep the bounds valid and work with the
+batched layer; `DLLMethod(projection = :radial)` and
+`DLLMethod(completion = :log, μ = 0.1)` forward them.
+
 ### Custom projections
 
 Any map into the dual cone keeps the bound valid, e.g. the radial projection of DLL

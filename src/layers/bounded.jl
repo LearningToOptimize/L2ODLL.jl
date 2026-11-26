@@ -68,6 +68,7 @@ function _bounded_layers(
     completion=:exact,
     μ=1.0,
     backend=nothing,
+    batch_projection=nothing,
 )
     if !isempty(
         dual_model.ext[:_Dualization_jl_PrimalDualMap].primal_var_in_quad_obj_to_dual_slack_var
@@ -155,7 +156,12 @@ function _bounded_layers(
             y_pred_proj, zl, zu = complete_fn(y_pred, param_value)
             return (y=y_pred_proj, z=[[[v] for v in zl]; [[v] for v in zu]], w=zl[1:0])
         end
-    return (objective=objective, completion=completion_fn)
+    batch = if isnothing(batch_projection)
+        nothing
+    else
+        BoundedBatchedLayer(batch_projection, z_fn.A, z_fn.b, obj_fn.Q, obj_fn.c, obj_fn.c0, completer)
+    end
+    return (objective=objective, completion=completion_fn, batch=batch)
 end
 
 function _find_and_return_value(vr, var_lists, values)
@@ -182,7 +188,10 @@ function complete_zlzu(c::LogBoundedCompletion{V,T}, zl_plus_zu) where {V,T}
     v = c.μ ./ (c.u - c.l)
     w = T(1//2) .* zl_plus_zu
     sqrtv2w2 = hypot.(v, w)
-    return (v + w + sqrtv2w2, -v + w - sqrtv2w2)
+    return (
+        v .+ w .+ sqrtv2w2,      # broadcasts, so a matrix of instances also works
+        .-v .+ w .- sqrtv2w2,
+    )
 end
 
 function make_completion_model(
