@@ -223,8 +223,8 @@ always minimized, so it is ``-\text{mean}\,\Phi`` for minimization problems and
 ## Deviations from the papers
 
 - **Signs.** MOI convention throughout (see above); both forms define the same bound.
-- **Projection.** Euclidean projection instead of DLL's preferred radial projection;
-  a custom `proj_fn` can implement the radial one.
+- **Projection.** Euclidean projection by default; DLL's radial projection is
+  available for second-order cones with `projection = :radial`.
 - **Bounded decomposition with a quadratic objective.** The background pages describe
   predicting ``(y, w)`` and completing the bounds; this is not implemented yet. Such
   models are detected as [`ConvexQP`](@ref) (if the objective is strictly convex),

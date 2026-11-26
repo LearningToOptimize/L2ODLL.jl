@@ -41,7 +41,9 @@ export AbstractDecomposition,
     get_y,
     get_z,
     y_shape,
-    DLLMethod
+    DLLMethod,
+    batched_layer,
+    batched_completion
 
 """
     can_decompose(model::JuMP.Model, ::Type{<:AbstractDecomposition}) -> Bool
@@ -57,6 +59,7 @@ include("layers/generic.jl")
 include("layers/bounded.jl")
 include("layers/convex_qp.jl")
 include("projection.jl")
+include("batched.jl")
 
 """
     DLLCache
@@ -73,9 +76,13 @@ struct DLLCache
     dual_model::JuMP.Model
     decomposition::AbstractDecomposition
     completion::Union{Nothing,Function}
+    batch::Any  # an AbstractBatchedLayer, or nothing (see `batched_layer`)
 end
 function DLLCache(y_proj, dll_layer, dual_model, decomposition)
-    return DLLCache(y_proj, dll_layer, dual_model, decomposition, nothing)
+    return DLLCache(y_proj, dll_layer, dual_model, decomposition, nothing, nothing)
+end
+function DLLCache(y_proj, dll_layer, dual_model, decomposition, completion)
+    return DLLCache(y_proj, dll_layer, dual_model, decomposition, completion, nothing)
 end
 
 const _DECOMPOSITIONS = [ # in order of preference for auto-detection
@@ -85,7 +92,7 @@ const _DECOMPOSITIONS = [ # in order of preference for auto-detection
 ]
 
 """
-    DLLMethod(; decomposition = nothing, optimizer = nothing)
+    DLLMethod(; decomposition = nothing, optimizer = nothing, kwargs...)
 
 Dual Lagrangian Learning as a method of the LearningToOptimize `L2OCore`
 interface (an `L2OCore.AbstractDualMethod`). Available after `import L2OCore`
@@ -94,6 +101,8 @@ interface (an `L2OCore.AbstractDualMethod`). Available after `import L2OCore`
   - `decomposition`: `nothing` to auto-detect (as in [`decompose!`](@ref)), or a
     function `model -> AbstractDecomposition`, e.g. `L2ODLL.BoundDecomposition`.
   - `optimizer`: used when the decomposition has no closed-form completion.
+  - `kwargs...`: forwarded to [`decompose!`](@ref), e.g. `projection = :radial` or
+    `completion = :log, μ = 0.1`.
 
 ```julia
 import L2OCore, L2ODLL
@@ -105,35 +114,38 @@ report = L2OCore.evaluate(pipe, P, pred) # report.dual_bound ≤ optimal values
 function DLLMethod end
 
 """
-    decompose!(model::JuMP.Model)
+    decompose!(model::JuMP.Model; kwargs...)
 
-Detect the best decomposition and build the DLL functions.
+Detect the best decomposition and build the DLL functions. Keyword arguments are
+those of `decompose!(model, decomposition; ...)`.
 """
-function decompose!(model::JuMP.Model)
+function decompose!(model::JuMP.Model; kwargs...)
     for decomp in _DECOMPOSITIONS
         if can_decompose(model, decomp)
-            return decompose!(model, decomp(model))
+            return decompose!(model, decomp(model); kwargs...)
         end
     end
     return error("Could not detect a decomposition with a feasible closed-form completion.")
 end
 
 """
-    decompose!(model::JuMP.Model, decomposition::AbstractDecomposition)
+    decompose!(model::JuMP.Model, decomposition::AbstractDecomposition;
+        optimizer = nothing, proj_fn = nothing, projection = :euclidean,
+        completion = :exact, μ = 1.0, dll_layer_builder = nothing, completion_builder = nothing)
 
 Build the DLL functions using the given decomposition.
+
+  - `projection`: `:euclidean` (default) or `:radial` (eq. 26 of Tanneau and Van
+    Hentenryck, 2024, for second-order cones; see [`BatchedProjection`](@ref)).
+    Ignored when a custom `proj_fn` is given.
+  - `completion`, `μ` (`BoundDecomposition` only): `:exact` (Example 1 of the DLL
+    paper) or `:log`, the log-barrier completion with parameter `μ > 0` (eq. 7 of
+    Klamkin, Tanneau and Van Hentenryck); both give valid bounds.
+  - `optimizer`: solver for decompositions without a closed form.
+  - `dll_layer_builder`, `completion_builder`: custom layers (see [`build_cache`](@ref)).
 """
-function decompose!(
-    model::JuMP.Model,
-    decomposition::AbstractDecomposition;
-    optimizer=nothing,
-    proj_fn=nothing,
-    dll_layer_builder=nothing,
-    completion_builder=nothing,
-)
-    return build_cache(
-        model, decomposition; optimizer, proj_fn, dll_layer_builder, completion_builder
-    )
+function decompose!(model::JuMP.Model, decomposition::AbstractDecomposition; kwargs...)
+    return build_cache(model, decomposition; kwargs...)
 end
 
 """
@@ -214,6 +226,8 @@ Batched [`dual_objective`](@ref): column `k` of `Y` is a flattened prediction
 """
 function dual_objective(model::JuMP.Model, Y::AbstractMatrix, P::AbstractMatrix)
     shape = _check_batch(model, Y, P)
+    batch = get_cache(model).batch
+    isnothing(batch) || return batch(Y, P)
     return [
         dual_objective(model, unflatten_y(collect(Y[:, k]), shape), collect(P[:, k])) for
         k in axes(Y, 2)
@@ -247,6 +261,8 @@ function dual_objective_and_gradient(
     ad_type::DI.AbstractADType=DI.AutoForwardDiff(),
 )
     shape = _check_batch(model, Y, P)
+    batch = get_cache(model).batch
+    isnothing(batch) || return _batched_value_and_gradient(batch, Y, P, ad_type)
     T = float(eltype(Y))
     vals = Vector{T}(undef, size(Y, 2))
     G = similar(Y, T)
@@ -258,6 +274,32 @@ function dual_objective_and_gradient(
         G[:, k] .= flatten_y(g)
     end
     return vals, G
+end
+
+# Column k of the batch value depends only on column k of Y, so the gradient of
+# every column is the gradient of the sum. Forward mode: one directional
+# derivative per row of Y, seeding all columns at once (cost independent of the
+# batch size); other backends: one gradient of the sum.
+function _batched_value_and_gradient(
+    batch, Y::AbstractMatrix, P::AbstractMatrix, ad_type::DI.AutoForwardDiff
+)
+    f = Yv -> batch(Yv, P)
+    tangents = ntuple(i -> _row_seed(Y, i), size(Y, 1))
+    vals, dirs = DI.value_and_pushforward(f, ad_type, Y, tangents)
+    G = isempty(dirs) ? zero(Y) : permutedims(reduce(hcat, collect(dirs)))
+    return vals, G
+end
+function _batched_value_and_gradient(
+    batch, Y::AbstractMatrix, P::AbstractMatrix, ad_type::DI.AbstractADType
+)
+    vals = batch(Y, P)
+    G = DI.gradient(Yv -> sum(batch(Yv, P)), ad_type, Y)
+    return vals, G
+end
+function _row_seed(Y::AbstractMatrix, i::Int)
+    E = zero(Y)
+    E[i:i, :] .= one(eltype(Y))
+    return E
 end
 
 """
@@ -278,17 +320,36 @@ function build_cache(
     proj_fn=nothing,
     dll_layer_builder=nothing,
     completion_builder=nothing,
+    projection::Symbol=:euclidean,
+    completion::Symbol=:exact,
+    μ::Real=1.0,
 )
     dual_model = Dualization.dualize(model; consider_constrained_variables=false)
 
-    proj_fn = !isnothing(proj_fn) ? proj_fn : make_proj_fn(decomposition, dual_model)
+    if completion != :exact && !(decomposition isa BoundDecomposition)
+        throw(ArgumentError("`completion = :$completion` is only available for BoundDecomposition"))
+    end
+
+    # The batched layer uses its own (matrix) projection, so it is only built when
+    # the projection is one of the built-in ones.
+    batch_projection =
+        isnothing(proj_fn) ? BatchedProjection(decomposition, dual_model; projection) : nothing
+    proj_fn = if !isnothing(proj_fn)
+        proj_fn
+    elseif projection == :euclidean
+        make_proj_fn(decomposition, dual_model)
+    else
+        _single_instance_projection(
+            batch_projection::BatchedProjection, y_shape(dual_model, decomposition)
+        )
+    end
 
     layers = if !isnothing(dll_layer_builder)
         nothing  # custom layer: do not build (possibly unsupported) defaults
     elseif decomposition isa BoundDecomposition
-        _bounded_layers(decomposition, proj_fn, dual_model)
+        _bounded_layers(decomposition, proj_fn, dual_model; completion, μ, batch_projection)
     elseif decomposition isa ConvexQP
-        _convex_qp_layers(decomposition, proj_fn, dual_model)
+        _convex_qp_layers(decomposition, proj_fn, dual_model; batch_projection)
     elseif !isnothing(optimizer)
         _jump_layers(decomposition, proj_fn, dual_model, optimizer)
     else
@@ -305,7 +366,7 @@ function build_cache(
         )
     end
 
-    completion = if !isnothing(completion_builder)
+    completion_fn = if !isnothing(completion_builder)
         completion_builder(decomposition, proj_fn, dual_model)
     elseif !isnothing(layers)
         layers.completion
@@ -313,7 +374,9 @@ function build_cache(
         nothing  # a custom layer without a matching completion
     end
 
-    cache = DLLCache(proj_fn, dll_layer, dual_model, decomposition, completion)
+    # The batched layer must agree with the per-instance layer and completion.
+    batch = (isnothing(layers) || !isnothing(completion_builder)) ? nothing : layers.batch
+    cache = DLLCache(proj_fn, dll_layer, dual_model, decomposition, completion_fn, batch)
     model.ext[:_L2ODLL_cache] = cache
     return cache
 end

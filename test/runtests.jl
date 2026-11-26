@@ -22,5 +22,6 @@ include("instances.jl")
     include("properties.jl")
     include("formulas.jl")
     include("l2ocore.jl")
+    include("batched.jl")
     include("qa.jl")
 end
