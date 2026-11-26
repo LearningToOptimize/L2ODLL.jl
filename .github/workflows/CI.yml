@@ -36,7 +36,7 @@ jobs:
         with:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
-      - uses: julia-actions/cache@v2
+      - uses: julia-actions/cache@v3
       # L2OCore (weak dependency, used by the tests) is not registered yet.
       # Julia >= 1.11 reads [sources] in Project.toml; Julia 1.10 needs it added.
       - name: Add unregistered L2OCore (Julia 1.10)
