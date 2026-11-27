@@ -1,5 +1,4 @@
 using Documenter
-using DocumenterMermaid
 using Literate
 using L2ODLL
 using L2OCore: L2OCore  # loads the extension, so its docstrings are included
@@ -27,7 +26,7 @@ makedocs(;
     format=Documenter.HTML(;
         prettyurls=get(ENV, "CI", nothing) == "true",
         canonical="https://learningtooptimize.github.io/L2ODLL.jl",
-        assets=["assets/wider.css", "assets/redlinks.css"],
+        assets=["assets/wider.css", "assets/redlinks.css", "assets/figures.css"],
         mathengine=Documenter.MathJax3(
             Dict(
                 :tex => Dict(

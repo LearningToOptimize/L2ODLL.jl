@@ -1,0 +1,103 @@
+% L2ODLL: Dual Lagrangian Learning.
+%
+% A proxy f_theta predicts the dual variables y-hat of the predicted block from
+% the parameters p; the prediction is projected onto the dual cone, y-bar =
+% Pi_{C*}(y-hat); the remaining duals z are completed by the completion problem
+% (3), in closed form for bounded variables (4) and strictly convex quadratic
+% objectives (6); the completed dual objective Phi(y-bar, p) is a dual bound
+% and, maximized in expectation (7), the self-supervised training loss.
+% Notation and equation numbers follow docs/src/theory.md (MOI sign convention).
+%
+% Build: make -C docs/src/assets/diagrams/src
+%   pdflatex -jobname=l2odll--dual-completion dll.tex          -> wide layout
+%   pdflatex -jobname=l2odll--dual-completion-compact dll.tex  -> narrow layout
+\documentclass[tikz,border=4pt]{standalone}
+\input{l2ostyle.tex}
+
+\newcommand{\completion}{%
+  $\begin{aligned}
+    \Phi(\bar y,p)=\max_{z}\;\; & -h(p)^\top z-b(p)^\top\bar y\\[1pt]
+    \text{s.t.}\;\; & H^\top z=c(p)-A^\top\bar y\\[1pt]
+    & z\in\mathcal{K}^*
+  \end{aligned}$}
+\newcommand{\quadratic}{strictly convex quadratic (6):\; $w=Q^{-1}\big(A^\top\bar y-c(p)\big)$}
+\newcommand{\training}{$\max_\theta\;\mathbb{E}_{p}\big[\Phi\big(\Pi_{\mathcal{C}^*}(f_\theta(p)),\,p\big)\big]$}
+
+\begin{document}
+\ifcompact
+% ============================ narrow (phone) layout ============================
+\begin{tikzpicture}
+  % ---- forward ----
+  \lane{0}{7.6}{7.6}{12.6}
+  \node[title] at (0.2,12.25) {\textcolor{dTeal}{\bfseries Forward:} predict, project, complete};
+  \node[store] (p) at (0.85,10.55) {$p$};
+  \net{3.0,10.55}{px}{0}
+  \node[font=\small] at (3.0,9.4) {$f_\theta$};
+  \node[font=\small\bfseries,text=dTeal] (th) at (1.75,9.4) {$\bm\theta$};
+  \draw[fwd] (p.east) -- (pxsheet.west);
+  \node[dia] (yh) at (5.0,10.55) {$\hat y$};
+  \draw[fwd] (pxout.east) -- (yh.west);
+  \node[chip] (pi) at (6.75,10.55) {$\Pi_{\mathcal{C}^*}$};
+  \draw[fwd] (yh.east) -- (pi.west);
+  \node[chip,fill=dPeach] (cp) at (2.6,8.35) {completion $z(\bar y,p)$};
+  \draw[fwd] (pi.south) |- node[pos=0.75,above,font=\small] {$\bar y$} (cp.east);
+  \node[note,anchor=west] at (4.2,7.95) {\cmd{decompose!} builds it once};
+  % ---- completion problem ----
+  \cardbox{0}{2.6}{7.6}{7.0}
+  \draw[fwd] (cp.south) -- (2.6,7.0);
+  \node[title] at (0.2,6.65) {\textcolor{dTeal}{\bfseries Completion problem} (3)};
+  \node[anchor=north west,font=\small,inner sep=0pt] at (0.35,6.25) {\completion};
+  \node[lnode] (phi) at (6.85,5.35) {$\Phi$};
+  \draw[dShadow,line width=0.6pt] (0.25,4.45) -- (7.35,4.45);
+  \node[font=\footnotesize,anchor=west,align=left] at (0.3,3.95) {bounded variables (4):\; $z_l=\lvert r\rvert^+$,\; $z_u=-\lvert r\rvert^-$,\\\hspace*{1em}with $r=c(p)-A^\top\bar y$};
+  \node[font=\footnotesize,anchor=west] at (0.3,3.3) {\quadratic};
+  \node[note,anchor=west] at (0.3,2.85) {weak duality: $\Phi(\bar y,p)\le\mathrm{OPT}(p)$ (minimization)};
+  % ---- training ----
+  \lane{0}{-0.2}{7.6}{2.0}
+  \node[title] at (0.2,1.65) {\textcolor{dTeal}{\bfseries Training} (7): no solved instances};
+  \node[font=\small,text=dCoral] (tr) at (3.8,1.0) {\training};
+  \draw[dual] (phi.east) -- (7.9,5.35) -- (7.9,0.3) -- (-0.3,0.3) -- (-0.3,9.4) -- (th.west);
+  \node[dnote,fill=white,inner sep=1pt] at (5.6,0.3) {gradient $\nabla_{\hat y}\Phi$};
+\end{tikzpicture}
+\else
+% =============================== wide layout ===================================
+\begin{tikzpicture}
+  % ---- training band (top) ----
+  \lane{0}{5.15}{18.6}{6.65}
+  \node[title] at (0.2,6.35) {\textcolor{dTeal}{\bfseries Training} (7): \textcolor{dInk}{maximize the expected bound; no solved instances are needed}};
+  \node[font=\small,text=dCoral] (tr) at (7.0,5.65) {\training};
+  \node[font=\small,text=dCoral] (gr) at (14.6,5.65) {gradient\;\; $\nabla_{\hat y}\,\Phi\big(\Pi_{\mathcal{C}^*}(\hat y),\,p\big)$};
+  \draw[dual] (gr.west) -- (tr.east);
+
+  % ---- forward (bottom left) ----
+  \lane{0}{0}{11.3}{4.6}
+  \node[title] at (0.2,4.25) {\textcolor{dTeal}{\bfseries Forward:} \textcolor{dInk}{predict, project, complete}};
+  \node[note,anchor=west] at (0.2,3.75) {\cmd{decompose!} builds $\Pi_{\mathcal{C}^*}$, the completion and $\Phi$ once from the primal JuMP model};
+  \node[store] (p) at (0.85,2.1) {$p$};
+  \net{2.95,2.1}{px}{0}
+  \node[font=\small] at (2.95,0.95) {$f_\theta$};
+  \node[font=\small\bfseries,text=dTeal] (th) at (1.75,0.85) {$\bm\theta$};
+  \draw[fwd] (p.east) -- (pxsheet.west);
+  \node[dia] (yh) at (4.85,2.1) {$\hat y$};
+  \draw[fwd] (pxout.east) -- (yh.west);
+  \node[chip] (pi) at (6.3,2.1) {$\Pi_{\mathcal{C}^*}$};
+  \draw[fwd] (yh.east) -- (pi.west);
+  \node[chip,fill=dPeach] (cp) at (9.35,2.1) {completion $z(\bar y,p)$};
+  \draw[fwd] (pi.east) -- node[above,font=\small] {$\bar y$} (cp.west);
+  \node[font=\footnotesize,anchor=west] at (4.3,1.3) {bounded variables (4):\; $z_l=\lvert r\rvert^+$,\; $z_u=-\lvert r\rvert^-$,};
+  \node[font=\footnotesize,anchor=west] at (4.3,0.85) {\hspace*{1em}with $r=c(p)-A^\top\bar y$};
+  \node[font=\footnotesize,anchor=west] at (4.3,0.35) {\quadratic};
+
+  % ---- completion problem (bottom right) ----
+  \cardbox{11.9}{0}{18.6}{4.6}
+  \node[title] at (12.1,4.25) {\textcolor{dTeal}{\bfseries Completion problem} (3)};
+  \node[anchor=north west,font=\small,inner sep=0pt] at (12.2,3.75) {\completion};
+  \draw[dShadow,line width=0.6pt] (12.1,1.4) -- (18.4,1.4);
+  \node[note,anchor=west] at (12.2,0.75) {weak duality: $\Phi(\bar y,p)\le\mathrm{OPT}(p)$ (min.)};
+  \draw[fwd] (cp.east) -- (11.9,2.1);
+  \node[lnode] (phi) at (17.75,2.55) {$\Phi$};
+  \draw[dual] (phi.north) -- (gr.south -| phi.north);
+  \draw[dual] (tr.west) -| (-0.35,0.85) -- (th.west);
+\end{tikzpicture}
+\fi
+\end{document}
