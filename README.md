@@ -1,23 +1,22 @@
+<div align="center">
+
 # L2ODLL.jl
 
-[![CI](https://github.com/LearningToOptimize/L2ODLL.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/LearningToOptimize/L2ODLL.jl/actions/workflows/CI.yml?query=branch%3Amain)
-[![Docs: dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://learningtooptimize.github.io/L2ODLL.jl/dev/)
-[![Codecov](https://codecov.io/gh/LearningToOptimize/L2ODLL.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/LearningToOptimize/L2ODLL.jl)
-[![Aqua QA](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
-[![JET](https://img.shields.io/badge/%F0%9F%9B%A9%EF%B8%8F_tested_with-JET.jl-233f9a)](https://github.com/aviatesk/JET.jl)
+<p><sub><b>DUAL PROXIES · DUAL COMPLETION · LAGRANGIAN BOUNDS</b></sub></p>
 
-L2ODLL is a Julia package implementing [Dual Lagrangian Learning for Conic Optimization](https://arxiv.org/abs/2402.03086) (DLL) using the [JuMP](https://github.com/jump-dev/JuMP.jl) modeling language.
-A proxy (e.g. a neural network) predicts some dual variables of a parametric conic or convex quadratic problem; L2ODLL projects the prediction onto the dual cone and completes the remaining dual variables in closed form, so that the result is dual feasible. Its dual objective is then a **valid bound on the optimal value for every prediction**, and it is differentiable, so it doubles as a self-supervised training loss that needs no optimal solutions.
-You write only the *primal* JuMP model: L2ODLL dualizes it ([Dualization.jl](https://github.com/jump-dev/Dualization.jl)), detects a decomposition with a closed-form completion and builds the projection, completion, bound and gradient functions.
+[![CI](https://github.com/LearningToOptimize/L2ODLL.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/LearningToOptimize/L2ODLL.jl/actions/workflows/CI.yml?query=branch%3Amain) [![Docs: dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://learningtooptimize.github.io/L2ODLL.jl/dev/) [![Codecov](https://codecov.io/gh/LearningToOptimize/L2ODLL.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/LearningToOptimize/L2ODLL.jl) [![Aqua QA](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl) [![JET](https://img.shields.io/badge/%F0%9F%9B%A9%EF%B8%8F_tested_with-JET.jl-233f9a)](https://github.com/aviatesk/JET.jl)
 
-```mermaid
-flowchart LR
-    p["parameters p"] --> f["proxy f(p)"]
-    f -->|"ŷ"| proj["projection onto the dual cone"]
-    proj -->|"y"| comp["dual completion z(y, p)"]
-    comp --> bound["dual bound Φ(y, p) ≤ OPT(p)"]
-    bound -.->|"∇ŷ Φ: training signal"| f
-```
+</div>
+
+<p align="center">
+  <picture>
+    <source media="(max-width: 640px)" srcset="docs/src/assets/diagrams/l2odll--dual-completion-compact.svg">
+    <img src="docs/src/assets/diagrams/l2odll--dual-completion.svg" width="760" alt="Dual Lagrangian Learning. Forward: the proxy f_theta maps the parameters p to a predicted dual y-hat; it is projected onto the dual cone, y-bar equals Pi_C-star of y-hat; the completion z of y-bar and p solves the completion problem (3), Phi of y-bar and p equals the maximum over z of minus h of p transpose z minus b of p transpose y-bar, subject to H transpose z equals c of p minus A transpose y-bar and z in the dual cone K-star; closed forms exist for bounded variables (4) and strictly convex quadratic objectives (6); by weak duality Phi is at most OPT of p for minimization. Training (7): maximize the expected Phi over theta, with the gradient of Phi with respect to y-hat returned to theta; no solved instances are needed. decompose! builds the projection, the completion and Phi once from the primal JuMP model.">
+  </picture>
+</p>
+<p align="center"><i>The proxy predicts some dual variables; projection and completion make them dual feasible, so their dual objective is a bound on the optimal value and, maximized, the training loss.</i></p>
+
+L2ODLL implements [Dual Lagrangian Learning for Conic Optimization](https://arxiv.org/abs/2402.03086) (DLL) for parametric problems written in [JuMP](https://github.com/jump-dev/JuMP.jl). A proxy (e.g. a neural network) predicts some dual variables of a parametric conic or convex quadratic problem; L2ODLL projects the prediction onto the dual cone and completes the remaining dual variables in closed form, so that the result is dual feasible. Its dual objective is then a **bound on the optimal value for every prediction**, and it is differentiable, so it doubles as a self-supervised training loss that needs no optimal solutions. You write only the *primal* JuMP model: L2ODLL dualizes it ([Dualization.jl](https://github.com/jump-dev/Dualization.jl)), detects a decomposition with a closed-form completion and builds the projection, completion, bound and gradient functions.
 
 ## Installation
 
@@ -73,7 +72,7 @@ for training a proxy (it also uses HiGHS and L2OCore).
 - A proxy producing `sum(y_shape(model))` outputs per instance, in any Julia ML
   framework (gradients work with ForwardDiff and Zygote).
 
-## Why the bound is valid
+## The dual bound
 
 For these problems the completion is always dual feasible, so by weak duality
 `dual_objective` is a bound on the optimal value for every prediction, and completing
