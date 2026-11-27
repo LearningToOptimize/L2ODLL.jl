@@ -25,8 +25,8 @@ Equation numbers such as "(DLL 9)" refer to the arXiv versions of these papers.
 | ``\lvert v\rvert^+ = \max(v, 0)``, ``\lvert v\rvert^- = \max(-v, 0)`` | elementwise |
 
 **Sign convention.** L2ODLL follows MathOptInterface: a constraint is written as
-"function in set", ``Ax + b \in \mathcal{C}``, and its dual is ``y \in
-\mathcal{C}^*`` with the signs returned by `JuMP.dual`. The papers write
+"function in set", ``Ax + b \in \mathcal{C}``, and its dual is
+``y \in \mathcal{C}^*`` with the signs returned by `JuMP.dual`. The papers write
 ``Ax \succeq_{\mathcal{K}} b``; the two forms coincide with ``b \mapsto -b``.
 Maximization problems are handled by Dualization.jl, so the predicted ``y`` always
 has `JuMP.dual` signs.
@@ -60,8 +60,8 @@ with parameters `μ`). The constraint matrix ``A`` and the quadratic objective `
 do not depend on ``p``; a parameter multiplying a variable in a constraint is
 rejected with an error.
 
-**Weak duality.** For every ``p`` and every *dual-feasible* ``y`` (``A^\top y =
-c(p)``, ``y \in \mathcal{C}^*``), ``-b(p)^\top y \le`` the optimal value of the
+**Weak duality.** For every ``p`` and every *dual-feasible* ``y``
+(``A^\top y = c(p)``, ``y \in \mathcal{C}^*``), ``-b(p)^\top y \le`` the optimal value of the
 primal. No convexity of the parameter dependence and no constraint qualification is
 needed. Strong duality (equality at the optimum) holds under Slater's condition.
 
@@ -109,9 +109,9 @@ and **completes** ``z`` by solving (DLL 9), whose dual is (DLL 8):
 returns ``(\bar y, z, w)``.
 
 **Theorem (DLL Theorem 1, dual conic completion).** *Assume that for every
-``\bar y \in \mathcal{C}^*`` the right-hand problem in (3) is bounded and strictly
-feasible. Then the left-hand problem in (3) has an optimal ``z``, and ``(\bar y,
-z)`` is feasible for (2).*
+``\bar y \in \mathcal{C}^\ast`` the right-hand problem in (3) is bounded and strictly
+feasible. Then the left-hand problem in (3) has an optimal ``z``, and
+``(\bar y, z)`` is feasible for (2).*
 
 **Theorem (DLL Theorem 2, optimal completion).** *Under the same assumptions,
 ``\Phi(\bar y, p)`` is a valid bound on the primal optimum, and it is the best
@@ -196,8 +196,8 @@ to [`decompose!`](@ref) (see the package guide).
 
 Training needs ``\nabla_{\hat y}\,\Phi(\Pi_{\mathcal{C}^*}(\hat y), p)``.
 
-**Theorem (DIPOL Theorem 3).** *For the bounded completion (4)–(5) with ``\mu \ge
-0``, ``\Phi`` is concave in ``\bar y`` and ``-b(p) - A\hat x`` is a supergradient,
+**Theorem (DIPOL Theorem 3).** *For the bounded completion (4)–(5) with
+``\mu \ge 0``, ``\Phi`` is concave in ``\bar y`` and ``-b(p) - A\hat x`` is a supergradient,
 where ``\hat x`` is an optimal dual solution of the equality constraints in (3)
 (the right-hand problem). For ``\mu > 0`` it is differentiable.*
 
