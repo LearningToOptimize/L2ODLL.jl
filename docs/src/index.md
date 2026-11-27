@@ -1,25 +1,16 @@
 # L2ODLL.jl
 
-L2ODLL.jl implements **Dual Lagrangian Learning** (DLL) of
-[Tanneau and Van Hentenryck (2024)](https://arxiv.org/abs/2402.03086) for parametric
-conic and convex quadratic problems modeled in [JuMP](https://jump.dev), with the
-bounded-variable completions of
-[Klamkin, Tanneau and Van Hentenryck](https://arxiv.org/abs/2402.02596).
+```@raw html
+<p class="eyebrow">Dual proxies · Dual completion · Lagrangian bounds</p>
+<figure class="fig hero has-compact">
+```
+![Dual Lagrangian Learning. Forward: the proxy f_theta maps the parameters p to a predicted dual y-hat; it is projected onto the dual cone, y-bar equals Pi_C-star of y-hat; the completion z of y-bar and p solves the completion problem (3), Phi of y-bar and p equals the maximum over z of minus h of p transpose z minus b of p transpose y-bar, subject to H transpose z equals c of p minus A transpose y-bar and z in the dual cone K-star; closed forms exist for bounded variables (4) and strictly convex quadratic objectives (6); by weak duality Phi is at most OPT of p for minimization. Training (7): maximize the expected Phi over theta, with the gradient of Phi with respect to y-hat returned to theta; no solved instances are needed. decompose! builds the projection, the completion and Phi once from the primal JuMP model.](assets/diagrams/l2odll--dual-completion.svg)
 
-A neural network (or any proxy) predicts some of the dual variables ``\hat y`` of a
-primal problem from its parameters ``p``. L2ODLL projects the prediction onto the
-dual cone and **completes** the remaining dual variables so that the result is dual
-feasible. Its dual objective is therefore a **valid bound** on the optimal value for
-*every* prediction (weak duality), and it is differentiable in ``\hat y``, so it is
-also the self-supervised training loss: maximizing it needs no optimal solutions.
-
-```mermaid
-flowchart LR
-    p["parameters p"] --> f["proxy f(p)"]
-    f -->|"ŷ"| proj["Π onto dual cone"]
-    proj -->|"y"| comp["dual completion z(y, p)"]
-    comp --> bound["Φ(y, p) ≤ OPT(p)"]
-    bound -.->|"∇ŷ Φ (training)"| f
+![The same diagram in a narrow layout.](assets/diagrams/l2odll--dual-completion-compact.svg)
+```@raw html
+<figcaption><i>The proxy predicts some dual variables; projection and completion make them dual feasible, so their dual objective is a bound on the optimal value and, maximized, the training loss.</i></figcaption>
+</figure>
+<p class="lede">L2ODLL.jl implements <b>Dual Lagrangian Learning</b> (DLL) of <a href="https://arxiv.org/abs/2402.03086">Tanneau and Van Hentenryck (2024)</a> for parametric conic and convex quadratic problems modeled in <a href="https://jump.dev">JuMP</a>, with the bounded-variable completions of <a href="https://arxiv.org/abs/2402.02596">Klamkin, Tanneau and Van Hentenryck</a>. A proxy predicts some of the dual variables from the parameters; projection onto the dual cone and completion of the remaining dual variables make the result dual feasible, so its dual objective is a bound on the optimal value for every prediction (weak duality) and, being differentiable, the self-supervised training loss.</p>
 ```
 
 L2ODLL takes the *primal* JuMP model, dualizes it with Dualization.jl, detects a

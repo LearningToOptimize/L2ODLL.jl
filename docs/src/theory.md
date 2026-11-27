@@ -120,6 +120,17 @@ bound among all dual-feasible points whose ``y``-block equals ``\bar y``.*
 In particular ``\Phi(y^\star, p)`` equals the optimal value when ``y^\star`` is the
 ``y``-block of an optimal dual solution.
 
+```@raw html
+<figure class="fig has-compact">
+```
+![Dual Lagrangian Learning. Forward: the proxy f_theta maps the parameters p to a predicted dual y-hat; it is projected onto the dual cone, y-bar equals Pi_C-star of y-hat; the completion z of y-bar and p solves the completion problem (3), Phi of y-bar and p equals the maximum over z of minus h of p transpose z minus b of p transpose y-bar, subject to H transpose z equals c of p minus A transpose y-bar and z in the dual cone K-star; closed forms exist for bounded variables (4) and strictly convex quadratic objectives (6); by weak duality Phi is at most OPT of p for minimization. Training (7): maximize the expected Phi over theta, with the gradient of Phi with respect to y-hat returned to theta; no solved instances are needed. decompose! builds the projection, the completion and Phi once from the primal JuMP model.](assets/diagrams/l2odll--dual-completion.svg)
+
+![The same diagram in a narrow layout.](assets/diagrams/l2odll--dual-completion-compact.svg)
+```@raw html
+<figcaption><b>Prediction, projection, completion, bound.</b> The proxy $f_\theta$ predicts $\hat y$; the projection gives $\bar y = \Pi_{\mathcal{C}^*}(\hat y)$; the completion problem (3) gives $z$ and the bound $\Phi(\bar y, p)$, in closed form for the two cases below; training maximizes (7). Same symbols and equation numbers as this page.</figcaption>
+</figure>
+```
+
 ## Closed-form completions
 
 The hypothesis of Theorem 1 holds, and (3) has a closed form, in two structured

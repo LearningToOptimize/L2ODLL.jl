@@ -7,17 +7,13 @@ CurrentModule = L2ODLL
 L2ODLL takes a **primal** parametric JuMP model and builds, once, everything Dual
 Lagrangian Learning needs during training and inference:
 
-```mermaid
-flowchart LR
-    M["primal JuMP model<br/>(parameters = MOI.Parameter)"] --> D["decompose!(model)"]
-    D --> C["DLLCache<br/>dual model (Dualization.jl)<br/>projection · completion · layer"]
-    NN["proxy f(p)"] -->|"ŷ"| C
-    P["parameters p"] --> NN
-    P --> C
-    C -->|"dual_objective"| B["valid bound Φ(Π(ŷ), p)"]
-    C -->|"dual_objective_gradient"| G["∇ŷ Φ"]
-    C -->|"dual_completion"| Z["(y, z, w)"]
-```
+| built once by [`decompose!`](@ref) | function | returns |
+|:--|:--|:--|
+| the dual model (Dualization.jl), the projection ``\Pi_{\mathcal{C}^*}``, the completion and its layer, stored in the model's `DLLCache` | [`dual_objective`](@ref) | the bound ``\Phi(\Pi_{\mathcal{C}^*}(\hat y), p)`` |
+| | [`dual_objective_gradient`](@ref) | ``\nabla_{\hat y}\Phi``, the training signal |
+| | [`dual_completion`](@ref) | the completed duals ``(\bar y, z, w)`` |
+
+The proxy ``f_\theta(p)`` supplies ``\hat y``; the [Theory](@ref) page draws the whole chain.
 
 ## Getting started
 

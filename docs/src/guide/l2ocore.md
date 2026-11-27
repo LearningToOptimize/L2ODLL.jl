@@ -11,24 +11,15 @@ declare which problem classes they `supports`, and the steps
 `decompose → generate_data → loss → complete → evaluate`.
 L2ODLL implements it as a **dual method**.
 
-```mermaid
-flowchart LR
-    PP["ParametricProblem(model)"] --> PIPE["L2OPipeline(problem, DLLMethod())"]
-    PIPE -->|"decompose"| DEC["DLLDecomposition<br/>(L2ODLL.decompose! + index map)"]
-    X["inputs P (params × B)"] --> NN["proxy"]
-    NN -->|"output (sum(y_shape) × B)"| COMP["complete → Prediction(dual)"]
-    NN --> LOSS["loss = ∓ mean Φ"]
-    COMP --> EV["evaluate: dual bound, dual infeasibility"]
-```
-
-| L2OCore function | DLL implementation |
-|:--|:--|
-| `supports` | `LinearConic`, `ConvexQuadratic` |
-| `decompose` | [`decompose!`](@ref) (auto-detected, or `DLLMethod(decomposition = BoundDecomposition)`) |
-| `output_dimension` | `sum(y_shape(model))` |
-| `complete` | projection + completion; full dual in `dual_layout` order with `JuMP.dual` signs |
-| `loss` | self-supervised (Theory eq. 7): ``-\text{mean}\,\Phi`` (min) / ``+\text{mean}\,\Phi`` (max) |
-| `generate_data` | inputs only; with `optimizer`, also optimal objectives and duals (for gaps) |
+| L2OCore function | DLL implementation | output |
+|:--|:--|:--|
+| `supports` | `LinearConic`, `ConvexQuadratic` | `true` for these classes |
+| `decompose` | [`decompose!`](@ref) (auto-detected, or `DLLMethod(decomposition = BoundDecomposition)`) | a `DLLDecomposition` (the decomposition and an index map) |
+| `output_dimension` | `sum(y_shape(model))` | proxy outputs per instance (`sum(y_shape) × B` per batch) |
+| `complete` | projection + completion; full dual in `dual_layout` order with `JuMP.dual` signs | `Prediction(dual)` |
+| `loss` | self-supervised (Theory eq. 7): ``-\text{mean}\,\Phi`` (min) / ``+\text{mean}\,\Phi`` (max) | a scalar to minimize |
+| `generate_data` | inputs only; with `optimizer`, also optimal objectives and duals (for gaps) | an `L2ODataset` |
+| `evaluate` | the L2OCore evaluators on the completed dual | dual bound and dual infeasibility per instance |
 
 ```julia
 import L2OCore, L2ODLL, Clarabel
